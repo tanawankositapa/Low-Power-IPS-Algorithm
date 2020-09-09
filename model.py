@@ -8,7 +8,7 @@ df = pd.read_csv('somedataset.csv')
 
 # กำหนด coloumn เป็น input(x) output(y)
 X = df[['BLE1', 'BLE2', 'BLE3', 'BLE4']]
-y = df[['PosX', 'PosY']]
+y = df[['X', 'Y']]
 
 # ประกาศใช้โมเดลจาก Keras
 model = Sequential()

@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include <string.h>
@@ -51,36 +51,36 @@
 #include "fds_example.h"
 
 
-#define PRINT_HELP  "print records\r\n"                                                             \
+#define PRINT_HELP  "print records\n"                                                             \
                     "usage: print all|config"
 
-#define PRINT_ALL_HELP  "print all records\r\n"                                                     \
+#define PRINT_ALL_HELP  "print all records\n"                                                     \
                         "usage: print all"
 
-#define PRINT_CFG_HELP  "print configuration\r\n"                                                   \
+#define PRINT_CFG_HELP  "print configuration\n"                                                   \
                         "usage: print config"
 
-#define WRITE_HELP  "write a record\r\n"                                                            \
-                    "usage: write file_id key \"data\"\r\n"                                         \
-                    "- file_id:\tfile ID, in HEX\r\n"                                               \
-                    "- key:\trecord key, in HEX\r\n"                                                \
+#define WRITE_HELP  "write a record\n"                                                            \
+                    "usage: write file_id key \"data\"\n"                                         \
+                    "- file_id:\tfile ID, in HEX\n"                                               \
+                    "- key:\trecord key, in HEX\n"                                                \
                     "- data:\trecord contents"
 
-#define DELETE_HELP "delete a record\r\n"                                                           \
-                    "usage: delete file_id key\r\n"                                                 \
-                    "- file_id:\tfile ID, in HEX\r\n"                                               \
-                    "- key:\trecord key, in HEX\r\n"                                                \
+#define DELETE_HELP "delete a record\n"                                                           \
+                    "usage: delete file_id key\n"                                                 \
+                    "- file_id:\tfile ID, in HEX\n"                                               \
+                    "- key:\trecord key, in HEX\n"                                                \
 
-#define DELETE_ALL_HELP "delete all records\r\n"                                                    \
+#define DELETE_ALL_HELP "delete all records\n"                                                    \
                         "usage: delete_all"                                                         \
 
-#define UPDATE_HELP "update configuration\r\n"                                                      \
+#define UPDATE_HELP "update configuration\n"                                                      \
                     "usage: update on|off on|off boot_count device_name"                            \
 
-#define STAT_HELP   "print statistics\r\n"                                                          \
+#define STAT_HELP   "print statistics\n"                                                          \
                     "usage: stat"
 
-#define GC_HELP     "run garbage collection\r\n"                                                    \
+#define GC_HELP     "run garbage collection\n"                                                    \
                     "usage: gc"
 
 
@@ -89,7 +89,7 @@ NRF_CLI_DEF(m_cli_uart, "fds example:~$ ", &cli_uart.transport, '\r', 4);
 
 
 /* Defined in main.c */
-extern char const * fds_err_str[];
+extern char const * fds_err_str(ret_code_t ret);
 
 
 void cli_init(void)
@@ -123,8 +123,8 @@ static void cli_unknown_param_help(nrf_cli_t const * p_cli,
 {
     nrf_cli_fprintf(p_cli,
                     NRF_CLI_ERROR,
-                    "%s: unknown parameter '%s'\r\n"
-                    "Try '%s -h' for help.\r\n",
+                    "%s: unknown parameter '%s'\n"
+                    "Try '%s -h' for help.\n",
                     p_cmd,
                     p_param,
                     p_cmd);
@@ -135,8 +135,8 @@ static void cli_wrong_param_count_help(nrf_cli_t const * p_cli, char const * p_c
 {
     nrf_cli_fprintf(p_cli,
                     NRF_CLI_ERROR,
-                    "%s: wrong parameter count.\r\n"
-                    "Try '%s -h' for help.\r\n",
+                    "%s: wrong parameter count.\n"
+                    "Try '%s -h' for help.\n",
                     p_cmd,
                     p_cmd);
 }
@@ -157,16 +157,16 @@ static void record_write(nrf_cli_t const * p_cli,
     };
 
     nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT,
-                    "writing record to flash...\r\n"
-                    "file: 0x%x, key: 0x%x, \"%s\", len: %u bytes\r\n",
+                    "writing record to flash...\n"
+                    "file: 0x%x, key: 0x%x, \"%s\", len: %u bytes\n",
                     fid, key, p_data, len);
 
     ret_code_t rc = fds_record_write(NULL, &rec);
-    if (rc != FDS_SUCCESS)
+    if (rc != NRF_SUCCESS)
     {
         nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                        "error: fds_record_write() returned %s.\r\n",
-                        fds_err_str[rc]);
+                        "error: fds_record_write() returned %s.\n",
+                        fds_err_str(rc));
     }
 }
 
@@ -176,7 +176,7 @@ static void record_update(nrf_cli_t const * p_cli, configuration_t const * p_cfg
     fds_record_desc_t desc = {0};
     fds_find_token_t  ftok = {0};
 
-    if (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &ftok) == FDS_SUCCESS)
+    if (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &ftok) == NRF_SUCCESS)
     {
         fds_record_t const rec =
         {
@@ -187,16 +187,16 @@ static void record_update(nrf_cli_t const * p_cli, configuration_t const * p_cfg
         };
 
         ret_code_t rc = fds_record_update(&desc, &rec);
-        if (rc != FDS_SUCCESS)
+        if (rc != NRF_SUCCESS)
         {
             nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                            "error: fds_record_update() returned %s.\r\n",
-                            fds_err_str[rc]);
+                            "error: fds_record_update() returned %s.\n",
+                            fds_err_str(rc));
         }
     }
     else
     {
-        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: could not find config file.\r\n");
+        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: could not find config file.\n");
     }
 }
 
@@ -207,27 +207,27 @@ static void record_delete(nrf_cli_t const * p_cli, uint32_t fid, uint32_t key)
     fds_record_desc_t desc = {0};
 
     nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT,
-                    "deleting record...\r\n"
-                    "file: 0x%x, key: 0x%x\r\n",
+                    "deleting record...\n"
+                    "file: 0x%x, key: 0x%x\n",
                     fid,
                     key);
 
-    if (fds_record_find(fid, key, &desc, &tok) == FDS_SUCCESS)
+    if (fds_record_find(fid, key, &desc, &tok) == NRF_SUCCESS)
     {
         ret_code_t rc = fds_record_delete(&desc);
-        if (rc != FDS_SUCCESS)
+        if (rc != NRF_SUCCESS)
         {
             nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                            "error: fds_record_delete() returned %s.\r\n", fds_err_str[rc]);
+                            "error: fds_record_delete() returned %s.\n", fds_err_str(rc));
 
             return;
         }
 
-        nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT, "record id: 0x%x\r\n", desc.record_id);
+        nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT, "record id: 0x%x\n", desc.record_id);
     }
     else
     {
-        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\r\n");
+        nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\n");
     }
 }
 
@@ -237,10 +237,10 @@ bool record_delete_next(void)
     fds_find_token_t  tok   = {0};
     fds_record_desc_t desc  = {0};
 
-    if (fds_record_iterate(&desc, &tok) == FDS_SUCCESS)
+    if (fds_record_iterate(&desc, &tok) == NRF_SUCCESS)
     {
         ret_code_t rc = fds_record_delete(&desc);
-        if (rc != FDS_SUCCESS)
+        if (rc != NRF_SUCCESS)
         {
             return false;
         }
@@ -277,7 +277,7 @@ static void print_cfg_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
     fds_record_desc_t desc = {0};
     fds_find_token_t  tok  = {0};
 
-    while (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok) == FDS_SUCCESS)
+    while (fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok) == NRF_SUCCESS)
     {
         ret_code_t rc;
         fds_flash_record_t frec = {0};
@@ -285,22 +285,22 @@ static void print_cfg_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
         rc = fds_record_open(&desc, &frec);
         switch (rc)
         {
-            case FDS_SUCCESS:
+            case NRF_SUCCESS:
                 break;
 
             case FDS_ERR_CRC_CHECK_FAILED:
-                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: CRC check failed!\r\n");
+                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: CRC check failed!\n");
                 continue;
 
             case FDS_ERR_NOT_FOUND:
-                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\r\n");
+                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\n");
                 continue;
 
             default:
             {
                 nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                                "error: unexpecte error %s.\r\n",
-                                fds_err_str[rc]);
+                                "error: unexpecte error %s.\n",
+                                fds_err_str(rc));
 
                 continue;
             }
@@ -309,10 +309,10 @@ static void print_cfg_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
         configuration_t * p_cfg = (configuration_t *)(frec.p_data);
 
         nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT,
-                        "config1:\t%s\r\n"
-                        "config2:\t%s\r\n"
-                        "boot count:\t%u\r\n"
-                        "device name:\t%s\r\n",
+                        "config1:\t%s\n"
+                        "config2:\t%s\n"
+                        "boot count:\t%u\n"
+                        "device name:\t%s\n",
                         p_cfg->config1_on ? "on" : "off",
                         p_cfg->config2_on ? "on" : "off",
                         p_cfg->boot_count,
@@ -333,7 +333,7 @@ static void print_all_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
                     "rec. id\t"
                     "\tfile id\t"
                     "\trec. key"
-                    "\tlength\r\n");
+                    "\tlength\n");
 
     while (fds_record_iterate(&desc, &tok) != FDS_ERR_NOT_FOUND)
     {
@@ -343,22 +343,22 @@ static void print_all_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
         rc = fds_record_open(&desc, &frec);
         switch (rc)
         {
-            case FDS_SUCCESS:
+            case NRF_SUCCESS:
                 break;
 
             case FDS_ERR_CRC_CHECK_FAILED:
-                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: CRC check failed!\r\n");
+                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: CRC check failed!\n");
                 continue;
 
             case FDS_ERR_NOT_FOUND:
-                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\r\n");
+                nrf_cli_fprintf(p_cli, NRF_CLI_ERROR, "error: record not found!\n");
                 continue;
 
             default:
             {
                 nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                                "error: unexpecte error %s.\r\n",
-                                fds_err_str[rc]);
+                                "error: unexpecte error %s.\n",
+                                fds_err_str(rc));
 
                 continue;
             }
@@ -370,7 +370,7 @@ static void print_all_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
                         " 0x%04x\t"
                         "\t 0x%04x\t"
                         "\t 0x%04x\t"
-                        "\t %4u bytes\r\n",
+                        "\t %4u bytes\n",
                         frec.p_header->record_id,
                         frec.p_header->file_id,
                         frec.p_header->record_key,
@@ -440,7 +440,7 @@ static void update_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
         memcpy(cfg.device_name, argv[4], len);
 
         nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT,
-            "updating configuration: %s, %s, boot_count=%u, device_name=\"%s\"\r\n",
+            "updating configuration: %s, %s, boot_count=%u, device_name=\"%s\"\n",
             cfg.config1_on ? "on" : "off",
             cfg.config2_on ? "on" : "off",
             cfg.boot_count,
@@ -503,12 +503,12 @@ static void stat_cmd(nrf_cli_t const * p_cli, size_t argc, char **argv)
         APP_ERROR_CHECK(rc);
 
         nrf_cli_fprintf(p_cli, NRF_CLI_DEFAULT,
-                        "total pages:\t%u\r\n"
-                        "total records:\t%u\r\n"
-                        "valid records:\t%u\r\n"
-                        "dirty records:\t%u\r\n"
-                        "largest contig:\t%u\r\n"
-                        "freeable words:\t%u (%u bytes)\r\n",
+                        "total pages:\t%u\n"
+                        "total records:\t%u\n"
+                        "valid records:\t%u\n"
+                        "dirty records:\t%u\n"
+                        "largest contig:\t%u\n"
+                        "freeable words:\t%u (%u bytes)\n",
                         stat.pages_available,
                         stat.valid_records + stat.dirty_records,
                         stat.valid_records,
@@ -525,12 +525,12 @@ static void gc_cmd(nrf_cli_t const * p_cli, size_t argc, char ** argv)
     ret_code_t rc = fds_gc();
     switch (rc)
     {
-        case FDS_SUCCESS:
+        case NRF_SUCCESS:
             break;
 
         default:
             nrf_cli_fprintf(p_cli, NRF_CLI_ERROR,
-                            "error: garbage collection returned %s\r\n", fds_err_str[rc]);
+                            "error: garbage collection returned %s\n", fds_err_str(rc));
             break;
     }
 }

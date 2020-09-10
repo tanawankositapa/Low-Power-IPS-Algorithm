@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2018 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2018 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sdk_config.h"
@@ -55,13 +55,13 @@
 #include "oberon_backend_ecc.h"
 
 #if NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_OBERON_ECC_SECP256R1)
-#include "occ_ecdh_p256.h"
+#include "ocrypto_ecdh_p256.h"
 #endif
 #if NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_OBERON_ECC_CURVE25519)
-#include "occ_curve25519.h"
+#include "ocrypto_curve25519.h"
 #endif
 #if NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_OBERON_ECC_ED25519)
-#include "occ_ed25519.h"
+#include "ocrypto_ed25519.h"
 #endif
 
 
@@ -242,7 +242,7 @@ ret_code_t nrf_crypto_backend_secp256r1_key_pair_generate(
         return result;
     }
 
-    result = occ_ecdh_p256_public_key(p_pub->key, p_prv->key);
+    result = ocrypto_ecdh_p256_public_key(p_pub->key, p_prv->key);
 
     if (result != 0)
     {
@@ -265,7 +265,7 @@ ret_code_t nrf_crypto_backend_secp256r1_public_key_calculate(
     nrf_crypto_backend_secp256r1_public_key_t * p_pub =
         (nrf_crypto_backend_secp256r1_public_key_t *)p_public_key;
 
-    result = occ_ecdh_p256_public_key(p_pub->key, p_prv->key);
+    result = ocrypto_ecdh_p256_public_key(p_pub->key, p_prv->key);
 
     if (result != 0)
     {
@@ -327,7 +327,7 @@ ret_code_t nrf_crypto_backend_curve25519_key_pair_generate(
     p_prv->key[31] &= 0x7F; // Highest bit has to be 0, because private key is 255-bit long.
     p_prv->key[31] |= 0x40; // Bit 254 has to be 1 (by definition)
 
-    occ_curve25519_scalarmult_base(p_pub->key, p_prv->key);
+    ocrypto_curve25519_scalarmult_base(p_pub->key, p_prv->key);
 
     return NRF_SUCCESS;
 }
@@ -345,7 +345,7 @@ ret_code_t nrf_crypto_backend_curve25519_public_key_calculate(
         (nrf_crypto_backend_curve25519_public_key_t *)p_public_key;
 
     // Private key bit fixing is done inside Oberon library.
-    occ_curve25519_scalarmult_base(p_pub->key, p_prv->key);
+    ocrypto_curve25519_scalarmult_base(p_pub->key, p_prv->key);
 
     return NRF_SUCCESS;
 }
@@ -358,9 +358,15 @@ const nrf_crypto_ecc_curve_info_t g_nrf_crypto_ecc_curve25519_curve_info =
     .curve_type           = NRF_CRYPTO_ECC_CURVE25519_CURVE_TYPE,
     .raw_private_key_size = NRF_CRYPTO_ECC_CURVE25519_RAW_PRIVATE_KEY_SIZE,
     .raw_public_key_size  = NRF_CRYPTO_ECC_CURVE25519_RAW_PUBLIC_KEY_SIZE,
+#if NRF_MODULE_ENABLED(NRF_CRYPTO_CURVE25519_BIG_ENDIAN)
     //lint -save -e611 -e546 (Suspicious cast, Suspicious use of &)
     .p_backend_data       = (void *)&nrf_crypto_internal_swap_endian,
     //lint -restore
+#else
+    //lint -save -e611 -e546 (Suspicious cast, Suspicious use of &)
+    .p_backend_data       = (void *)&memcpy,
+    //lint -restore
+#endif
 };
 
 
@@ -388,7 +394,7 @@ ret_code_t nrf_crypto_backend_ed25519_private_key_from_raw(
 
     memcpy(p_prv->private_part, p_raw_data, sizeof(p_prv->private_part));
 
-    occ_ed25519_public_key(p_prv->public_part, p_prv->private_part);
+    ocrypto_ed25519_public_key(p_prv->public_part, p_prv->private_part);
 
     return NRF_SUCCESS;
 }
@@ -414,7 +420,7 @@ ret_code_t nrf_crypto_backend_ed25519_key_pair_generate(
         return result;
     }
 
-    occ_ed25519_public_key(p_prv->public_part, p_prv->private_part);
+    ocrypto_ed25519_public_key(p_prv->public_part, p_prv->private_part);
 
     memcpy(p_pub->key, p_prv->public_part, sizeof(p_pub->key));
 

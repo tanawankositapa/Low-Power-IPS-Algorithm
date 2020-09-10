@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2010 - 2018, Nordic Semiconductor ASA
+Copyright (c) 2010 - 2020, Nordic Semiconductor ASA
 
 All rights reserved.
 
@@ -66,6 +66,38 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #define __PACKED            __packed
     #endif
 
+    #ifndef __UNUSED
+        #define __UNUSED            __attribute__((unused))
+    #endif
+
+    #define GET_SP()                __current_sp()
+    
+#elif defined (__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+
+    #ifndef __ASM
+        #define __ASM               __asm
+    #endif
+
+    #ifndef __INLINE
+        #define __INLINE            __inline
+    #endif
+
+    #ifndef __WEAK
+        #define __WEAK              __attribute__((weak))
+    #endif
+
+    #ifndef __ALIGN
+        #define __ALIGN(n)          __attribute__((aligned(n)))
+    #endif
+
+    #ifndef __PACKED
+        #define __PACKED            __attribute__((packed, aligned(1)))
+    #endif
+
+    #ifndef __UNUSED
+        #define __UNUSED            __attribute__((unused))
+    #endif
+
     #define GET_SP()                __current_sp()
 
 #elif defined ( __ICCARM__ )
@@ -89,6 +121,10 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     #ifndef __PACKED
         #define __PACKED            __packed
+    #endif
+
+    #ifndef __UNUSED
+        #define __UNUSED
     #endif
     
     #define GET_SP()                __get_SP()
@@ -115,12 +151,17 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #define __PACKED           __attribute__((packed)) 
     #endif
 
+    #ifndef __UNUSED
+        #define __UNUSED            __attribute__((unused))
+    #endif
+
     #define GET_SP()                gcc_current_sp()
 
     static inline unsigned int gcc_current_sp(void)
     {
-        register unsigned sp __ASM("sp");
-        return sp;
+        unsigned int stack_pointer = 0;
+        __asm__ __volatile__ ("mov %0, sp" : "=r"(stack_pointer));
+        return stack_pointer;
     }
 
 #elif defined   ( __TASKING__ )
@@ -144,6 +185,10 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     /* Not defined for TASKING. */
     #ifndef __PACKED
         #define __PACKED
+    #endif
+
+    #ifndef __UNUSED
+        #define __UNUSED            __attribute__((unused))
     #endif
 
     #define GET_SP()                __get_MSP()

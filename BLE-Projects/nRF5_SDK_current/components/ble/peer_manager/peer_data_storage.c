@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2015 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2015 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include "sdk_common.h"
 #if NRF_MODULE_ENABLED(PEER_MANAGER)
@@ -49,6 +49,17 @@
 #include "peer_id.h"
 #include "fds.h"
 
+#define NRF_LOG_MODULE_NAME peer_manager_pds
+#if PM_LOG_ENABLED
+    #define NRF_LOG_LEVEL       PM_LOG_LEVEL
+    #define NRF_LOG_INFO_COLOR  PM_LOG_INFO_COLOR
+    #define NRF_LOG_DEBUG_COLOR PM_LOG_DEBUG_COLOR
+#else
+    #define NRF_LOG_LEVEL       0
+#endif // PM_LOG_ENABLED
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+NRF_LOG_MODULE_REGISTER();
 
 // Macro for verifying that the peer id is within a valid range.
 #define VERIFY_PEER_ID_IN_RANGE(id)         VERIFY_FALSE((id >= PM_PEER_ID_N_AVAILABLE_IDS), \
@@ -142,14 +153,15 @@ static bool peer_data_id_is_valid(pm_peer_data_id_t data_id)
             (data_id == PM_PEER_DATA_ID_GATT_LOCAL)              ||
             (data_id == PM_PEER_DATA_ID_GATT_REMOTE)             ||
             (data_id == PM_PEER_DATA_ID_PEER_RANK)               ||
+            (data_id == PM_PEER_DATA_ID_CENTRAL_ADDR_RES)        ||
             (data_id == PM_PEER_DATA_ID_APPLICATION));
 }
 
 
 /**@brief Function for sending a PM_EVT_ERROR_UNEXPECTED event.
  *
- * @param[in]  peer_id   The peer the event pertains to.
- * @param[in]  err_code  The unexpected error that occurred.
+ * @param[in]  peer_id    The peer the event pertains to.
+ * @param[in]  err_code   The unexpected error that occurred.
  */
 static void send_unexpected_error(pm_peer_id_t peer_id, ret_code_t err_code)
 {
@@ -201,8 +213,11 @@ static void peer_data_delete_process()
         {
             m_peer_delete_deferred = true;
         }
-        else if (ret != FDS_SUCCESS)
+        else if (ret != NRF_SUCCESS)
         {
+            NRF_LOG_ERROR("Could not delete peer data. fds_file_delete() returned 0x%x for peer_id: %d",
+                          ret,
+                          peer_id);
             send_unexpected_error(peer_id, ret);
         }
     }
@@ -227,7 +242,7 @@ static ret_code_t peer_data_find(pm_peer_id_t              peer_id,
 
     ret = fds_record_find(file_id, record_key, p_desc, &ftok);
 
-    if (ret != FDS_SUCCESS)
+    if (ret != NRF_SUCCESS)
     {
         return NRF_ERROR_NOT_FOUND;
     }
@@ -246,7 +261,7 @@ static void peer_ids_load()
 
     uint16_t const record_key = peer_data_id_to_record_key(PM_PEER_DATA_ID_BONDING);
 
-    while (fds_record_find_by_key(record_key, &record_desc, &ftok) == FDS_SUCCESS)
+    while (fds_record_find_by_key(record_key, &record_desc, &ftok) == NRF_SUCCESS)
     {
         pm_peer_id_t peer_id;
 
@@ -283,7 +298,7 @@ static void fds_evt_handler(fds_evt_t const * const p_fds_evt)
                                                                         : PM_PEER_DATA_OP_UPDATE;
                 pds_evt.params.peer_data_update_succeeded.token = p_fds_evt->write.record_id;
 
-                if (p_fds_evt->result == FDS_SUCCESS)
+                if (p_fds_evt->result == NRF_SUCCESS)
                 {
                     pds_evt.evt_id = PM_EVT_PEER_DATA_UPDATE_SUCCEEDED;
                     pds_evt.params.peer_data_update_succeeded.flash_changed = true;
@@ -302,7 +317,7 @@ static void fds_evt_handler(fds_evt_t const * const p_fds_evt)
             if (    file_id_within_pm_range(p_fds_evt->del.file_id)
                 && (p_fds_evt->del.record_key == FDS_RECORD_KEY_DIRTY))
             {
-                if (p_fds_evt->result == FDS_SUCCESS)
+                if (p_fds_evt->result == NRF_SUCCESS)
                 {
                     pds_evt.evt_id = PM_EVT_PEER_DELETE_SUCCEEDED;
                     peer_id_free(pds_evt.peer_id);
@@ -310,6 +325,7 @@ static void fds_evt_handler(fds_evt_t const * const p_fds_evt)
                 else
                 {
                     pds_evt.evt_id = PM_EVT_PEER_DELETE_FAILED;
+                    pds_evt.params.peer_delete_failed.error = p_fds_evt->result;
                 }
 
                 m_peer_delete_deferred = true; // Trigger remaining deletes.
@@ -319,9 +335,16 @@ static void fds_evt_handler(fds_evt_t const * const p_fds_evt)
             break;
 
         case FDS_EVT_GC:
-            pds_evt.evt_id = PM_EVT_FLASH_GARBAGE_COLLECTED;
+            if (p_fds_evt->result == NRF_SUCCESS)
+            {
+                pds_evt.evt_id = PM_EVT_FLASH_GARBAGE_COLLECTED;
+            }
+            else
+            {
+                pds_evt.evt_id = PM_EVT_FLASH_GARBAGE_COLLECTION_FAILED;
+                pds_evt.params.garbage_collection_failed.error = p_fds_evt->result;
+            }
             pds_evt.peer_id = PM_PEER_ID_INVALID;
-
             pds_evt_send(&pds_evt);
             break;
 
@@ -347,12 +370,14 @@ ret_code_t pds_init()
     ret = fds_register(fds_evt_handler);
     if (ret != NRF_SUCCESS)
     {
+        NRF_LOG_ERROR("Could not initialize flash storage. fds_register() returned 0x%x.", ret);
         return NRF_ERROR_INTERNAL;
     }
 
     ret = fds_init();
     if (ret != NRF_SUCCESS)
     {
+        NRF_LOG_ERROR("Could not initialize flash storage. fds_init() returned 0x%x.", ret);
         return NRF_ERROR_STORAGE_FULL;
     }
 
@@ -410,14 +435,13 @@ ret_code_t pds_peer_data_read(pm_peer_id_t                    peer_id,
     else
     {
         uint32_t const data_len_bytes = (p_data->length_words * sizeof(uint32_t));
+        uint32_t const copy_len_bytes = MIN((*p_buf_len), (p_data->length_words * sizeof(uint32_t)));
 
-        if ((*p_buf_len) >= data_len_bytes)
+        memcpy(p_data->p_all_data, rec_flash.p_data, copy_len_bytes);
+
+        if (copy_len_bytes < data_len_bytes)
         {
-            memcpy(p_data->p_all_data, rec_flash.p_data, data_len_bytes);
-        }
-        else
-        {
-            return NRF_ERROR_NO_MEM;
+            return NRF_ERROR_DATA_SIZE;
         }
     }
 
@@ -478,57 +502,8 @@ bool pds_peer_data_iterate(pm_peer_data_id_t            data_id,
 }
 
 
-ret_code_t pds_space_reserve(pm_peer_data_const_t const * p_peer_data,
-                             pm_prepare_token_t         * p_prepare_token)
-{
-    ret_code_t ret;
-
-    NRF_PM_DEBUG_CHECK(m_module_initialized);
-    NRF_PM_DEBUG_CHECK(p_peer_data     != NULL);
-    NRF_PM_DEBUG_CHECK(p_prepare_token != NULL);
-
-    VERIFY_PEER_DATA_ID_IN_RANGE(p_peer_data->data_id);
-
-    ret = fds_reserve((fds_reserve_token_t*)p_prepare_token, p_peer_data->length_words);
-
-    switch (ret)
-    {
-        case FDS_SUCCESS:
-            return NRF_SUCCESS;
-
-        case FDS_ERR_RECORD_TOO_LARGE:
-            return NRF_ERROR_INVALID_LENGTH;
-
-        case FDS_ERR_NO_SPACE_IN_FLASH:
-            return NRF_ERROR_STORAGE_FULL;
-
-        default:
-            return NRF_ERROR_INTERNAL;
-    }
-}
-
-
-ret_code_t pds_space_reserve_cancel(pm_prepare_token_t prepare_token)
-{
-    ret_code_t ret;
-
-    NRF_PM_DEBUG_CHECK(m_module_initialized);
-    NRF_PM_DEBUG_CHECK(prepare_token != PDS_PREPARE_TOKEN_INVALID);
-
-    ret = fds_reserve_cancel((fds_reserve_token_t*)&prepare_token);
-
-    if (ret != FDS_SUCCESS)
-    {
-        return NRF_ERROR_INTERNAL;
-    }
-
-    return NRF_SUCCESS;
-}
-
-
 ret_code_t pds_peer_data_store(pm_peer_id_t                 peer_id,
                                pm_peer_data_const_t const * p_peer_data,
-                               pm_prepare_token_t           prepare_token,
                                pm_store_token_t           * p_store_token)
 {
     ret_code_t         ret;
@@ -551,32 +526,17 @@ ret_code_t pds_peer_data_store(pm_peer_id_t                 peer_id,
 
     if (ret == NRF_ERROR_NOT_FOUND)
     {
-        // No previous data exists in flash.
-        if (prepare_token == PDS_PREPARE_TOKEN_INVALID)
-        {
-            // No space was previously reserved.
-            ret = fds_record_write(&rec_desc, &rec);
-        }
-        else
-        {
-            // Space for this record was previously reserved.
-            ret = fds_record_write_reserved(&rec_desc, &rec, (fds_reserve_token_t*)&prepare_token);
-        }
+        ret = fds_record_write(&rec_desc, &rec);
     }
     else // NRF_SUCCESS
     {
-        if (prepare_token != PDS_PREPARE_TOKEN_INVALID)
-        {
-            (void)fds_reserve_cancel((fds_reserve_token_t*)&prepare_token);
-        }
-
         // Update existing record.
         ret = fds_record_update(&rec_desc, &rec);
     }
 
     switch (ret)
     {
-        case FDS_SUCCESS:
+        case NRF_SUCCESS:
             if (p_store_token != NULL)
             {
                 // Update the store token.
@@ -591,7 +551,14 @@ ret_code_t pds_peer_data_store(pm_peer_id_t                 peer_id,
         case FDS_ERR_NO_SPACE_IN_FLASH:
             return NRF_ERROR_STORAGE_FULL;
 
+        case FDS_ERR_UNALIGNED_ADDR:
+            return NRF_ERROR_INVALID_ADDR;
+
         default:
+            NRF_LOG_ERROR("Could not write data to flash. fds_record_{write|update}() returned 0x%x. "\
+                          "peer_id: %d",
+                          ret,
+                          peer_id);
             return NRF_ERROR_INTERNAL;
     }
 }
@@ -618,13 +585,18 @@ ret_code_t pds_peer_data_delete(pm_peer_id_t peer_id, pm_peer_data_id_t data_id)
 
     switch (ret)
     {
-        case FDS_SUCCESS:
+        case NRF_SUCCESS:
             return NRF_SUCCESS;
 
         case FDS_ERR_NO_SPACE_IN_QUEUES:
             return NRF_ERROR_BUSY;
 
         default:
+            NRF_LOG_ERROR("Could not delete peer. fds_record_delete() returned 0x%x. peer_id: %d, "\
+                          "data_id: %d.",
+                          ret,
+                          peer_id,
+                          data_id);
             return NRF_ERROR_INTERNAL;
     }
 }
@@ -653,6 +625,13 @@ bool pds_peer_id_is_allocated(pm_peer_id_t peer_id)
 {
     NRF_PM_DEBUG_CHECK(m_module_initialized);
     return peer_id_is_allocated(peer_id);
+}
+
+
+bool pds_peer_id_is_deleted(pm_peer_id_t peer_id)
+{
+    NRF_PM_DEBUG_CHECK(m_module_initialized);
+    return peer_id_is_deleted(peer_id);
 }
 
 

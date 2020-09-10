@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include "nrf_dfu_serial.h"
@@ -59,7 +59,7 @@ NRF_LOG_MODULE_REGISTER();
  * @ingroup  nrf_dfu
  * @brief    Device Firmware Update (DFU) transport layer using UART.
  */
- 
+
 #define NRF_SERIAL_OPCODE_SIZE          (sizeof(uint8_t))
 #define NRF_UART_MAX_RESPONSE_SIZE_SLIP (2 * NRF_SERIAL_MAX_RESPONSE_SIZE + 1)
 #define RX_BUF_SIZE                     (64) //to get 64bytes payload
@@ -105,16 +105,18 @@ static ret_code_t rsp_send(uint8_t const * p_data, uint32_t length)
 
 static __INLINE void on_rx_complete(nrf_dfu_serial_t * p_transport, uint8_t * p_data, uint8_t len)
 {
-    ret_code_t ret_code;
+    ret_code_t ret_code = NRF_ERROR_TIMEOUT;
 
-    ret_code = slip_decode_add_byte(&m_slip, p_data[0]);
+    // Check if there is byte to process. Zero length transfer means that RXTO occured.
+    if (len)
+    {
+        ret_code = slip_decode_add_byte(&m_slip, p_data[0]);
+    }
+
     (void) nrf_drv_uart_rx(&m_uart, &m_rx_byte, 1);
 
     if (ret_code == NRF_SUCCESS)
     {
-        // Activity detected on current transport, close all except active one.
-        UNUSED_RETURN_VALUE(nrf_dfu_transports_close(&uart_dfu_transport));
-
         nrf_dfu_serial_on_packet_received(p_transport,
                                          (uint8_t const *)m_slip.p_buffer,
                                          m_slip.current_index);
@@ -185,6 +187,7 @@ static uint32_t uart_dfu_transport_init(nrf_dfu_observer_t observer)
     m_serial.mtu                = UART_SLIP_MTU;
     m_serial.p_rsp_buf          = &m_rsp_buf[NRF_UART_MAX_RESPONSE_SIZE_SLIP -
                                             NRF_SERIAL_MAX_RESPONSE_SIZE];
+    m_serial.p_low_level_transport = &uart_dfu_transport;
 
     nrf_drv_uart_config_t uart_config = NRF_DRV_UART_DEFAULT_CONFIG;
 

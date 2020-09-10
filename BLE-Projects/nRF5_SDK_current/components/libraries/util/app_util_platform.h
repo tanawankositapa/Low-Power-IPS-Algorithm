@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2014 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2014 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /**@file
  *
@@ -68,16 +68,17 @@ extern "C" {
 #define _PRIO_APP_HIGH      1
 #define _PRIO_APP_MID       1
 #define _PRIO_SD_LOW        2
+#define _PRIO_APP_LOW_MID   3
 #define _PRIO_APP_LOW       3
 #define _PRIO_APP_LOWEST    3
 #define _PRIO_THREAD        4
-#elif __CORTEX_M == (0x04U)
+#elif __CORTEX_M >= (0x04U)
 #define _PRIO_SD_HIGH       0
 #define _PRIO_SD_MID        1
 #define _PRIO_APP_HIGH      2
 #define _PRIO_APP_MID       3
 #define _PRIO_SD_LOW        4
-#define _PRIO_SD_LOWEST     5
+#define _PRIO_APP_LOW_MID   5
 #define _PRIO_APP_LOW       6
 #define _PRIO_APP_LOWEST    7
 #define _PRIO_THREAD        15
@@ -91,19 +92,20 @@ extern "C" {
 typedef enum
 {
 #ifndef SOFTDEVICE_PRESENT
-    APP_IRQ_PRIORITY_HIGHEST = _PRIO_SD_HIGH,
+    APP_IRQ_PRIORITY_HIGHEST = _PRIO_SD_HIGH,     /**< Running in Application Highest interrupt level. */
 #else
-    APP_IRQ_PRIORITY_HIGHEST = _PRIO_APP_HIGH,
+    APP_IRQ_PRIORITY_HIGHEST = _PRIO_APP_HIGH,    /**< Running in Application Highest interrupt level. */
 #endif
-    APP_IRQ_PRIORITY_HIGH    = _PRIO_APP_HIGH,
+    APP_IRQ_PRIORITY_HIGH    = _PRIO_APP_HIGH,    /**< Running in Application High interrupt level. */
 #ifndef SOFTDEVICE_PRESENT
-    APP_IRQ_PRIORITY_MID     = _PRIO_SD_LOW,
+    APP_IRQ_PRIORITY_MID     = _PRIO_SD_LOW,      /**< Running in Application Middle interrupt level. */
 #else
-    APP_IRQ_PRIORITY_MID     = _PRIO_APP_MID,
+    APP_IRQ_PRIORITY_MID     = _PRIO_APP_MID,     /**< Running in Application Middle interrupt level. */
 #endif
-    APP_IRQ_PRIORITY_LOW     = _PRIO_APP_LOW,
-    APP_IRQ_PRIORITY_LOWEST  = _PRIO_APP_LOWEST,
-    APP_IRQ_PRIORITY_THREAD  = _PRIO_THREAD     /**< "Interrupt level" when running in Thread Mode. */
+    APP_IRQ_PRIORITY_LOW_MID = _PRIO_APP_LOW_MID, /**< Running in Application Middle Low interrupt level. */
+    APP_IRQ_PRIORITY_LOW     = _PRIO_APP_LOW,     /**< Running in Application Low interrupt level. */
+    APP_IRQ_PRIORITY_LOWEST  = _PRIO_APP_LOWEST,  /**< Running in Application Lowest interrupt level. */
+    APP_IRQ_PRIORITY_THREAD  = _PRIO_THREAD       /**< Running in Thread Mode. */
 } app_irq_priority_t;
 //lint -restore
 
@@ -253,10 +255,7 @@ void app_util_critical_region_exit (uint8_t nested);
 
 /**@brief Function for finding the current interrupt level.
  *
- * @return   Current interrupt level.
- * @retval   APP_IRQ_PRIORITY_HIGH    We are running in Application High interrupt level.
- * @retval   APP_IRQ_PRIORITY_LOW     We are running in Application Low interrupt level.
- * @retval   APP_IRQ_PRIORITY_THREAD  We are running in Thread Mode.
+ * @return   Current interrupt level. See @ref app_irq_priority_t for values.
  */
 uint8_t current_int_priority_get(void);
 

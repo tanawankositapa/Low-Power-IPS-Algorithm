@@ -1,6 +1,6 @@
 /*
  
-Copyright (c) 2009-2018 ARM Limited. All rights reserved.
+Copyright (c) 2009-2020 ARM Limited. All rights reserved.
 
     SPDX-License-Identifier: Apache-2.0
 
@@ -56,7 +56,7 @@ __StackTop:
 #elif defined(__HEAP_SIZE)
     .equ Heap_Size, __HEAP_SIZE
 #else
-    .equ    Heap_Size, 2048
+    .equ Heap_Size, 2048
 #endif
     .globl __HeapBase
     .globl __HeapLimit
@@ -68,7 +68,7 @@ __HeapBase:
 __HeapLimit:
     .size __HeapLimit, . - __HeapLimit
 
-    .section .isr_vector
+    .section .isr_vector, "ax"
     .align 2
     .globl __isr_vector
 __isr_vector:
@@ -92,9 +92,9 @@ __isr_vector:
   /* External Interrupts */
     .long   POWER_CLOCK_IRQHandler
     .long   RADIO_IRQHandler
-    .long   UARTE0_IRQHandler
-    .long   TWIM0_TWIS0_IRQHandler
-    .long   SPIM0_SPIS0_IRQHandler
+    .long   UARTE0_UART0_IRQHandler
+    .long   TWIM0_TWIS0_TWI0_IRQHandler
+    .long   SPIM0_SPIS0_SPI0_IRQHandler
     .long   0                           /*Reserved */
     .long   GPIOTE_IRQHandler
     .long   SAADC_IRQHandler
@@ -216,6 +216,29 @@ __isr_vector:
     .type Reset_Handler, %function
 Reset_Handler:
 
+    /* Workaround for Errata 185 RAM: RAM corruption at extreme corners 
+     * found at the Errata document for your device located
+     * at https://infocenter.nordicsemi.com/index.jsp */
+    
+    LDR     R0, =0x10000130
+    LDR     R0, [R0]
+    LDR     R1, =0x10000134
+    LDR     R1, [R1]
+    
+    CMP     R0, #0xA
+    BNE     skip
+    CMP     R1, #0x0
+    BNE     skip
+    
+    LDR     R0, =0x40000EE4
+    LDR     R2, [R0]
+    LDR     R3, =0xFFFFFF8F
+    ANDS    R2, R2, R3
+    LDR     R3, =0x00000040
+    ORRS    R2, R2, R3
+    STR     R2, [R0]
+    
+skip:
 
 /* Loop to copy data from read only memory to RAM.
  * The ranges of copy from/to are specified by following symbols:
@@ -230,11 +253,11 @@ Reset_Handler:
     ldr r2, =__data_start__
     ldr r3, =__bss_start__
 
-    subs r3, r2
+    subs r3, r3, r2
     ble .L_loop1_done
 
 .L_loop1:
-    subs r3, #4
+    subs r3, r3, #4
     ldr r0, [r1,r3]
     str r0, [r2,r3]
     bgt .L_loop1
@@ -257,11 +280,11 @@ Reset_Handler:
 
     movs r0, 0
 
-    subs r2, r1
+    subs r2, r2, r1
     ble .L_loop3_done
 
 .L_loop3:
-    subs r2, #4
+    subs r2, r2, #4
     str r0, [r1, r2]
     bgt .L_loop3
 
@@ -365,9 +388,9 @@ Default_Handler:
 
     IRQ  POWER_CLOCK_IRQHandler
     IRQ  RADIO_IRQHandler
-    IRQ  UARTE0_IRQHandler
-    IRQ  TWIM0_TWIS0_IRQHandler
-    IRQ  SPIM0_SPIS0_IRQHandler
+    IRQ  UARTE0_UART0_IRQHandler
+    IRQ  TWIM0_TWIS0_TWI0_IRQHandler
+    IRQ  SPIM0_SPIS0_SPI0_IRQHandler
     IRQ  GPIOTE_IRQHandler
     IRQ  SAADC_IRQHandler
     IRQ  TIMER0_IRQHandler

@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -864,11 +864,8 @@ static void usbd_event_handler(nrf_drv_usbd_evt_t const * const p_event)
         {
             if (NRF_USBD_EP_OK == p_event->data.eptransfer.status)
             {
-                if (!nrf_drv_usbd_errata_154())
-                {
-                    /* Transfer ok - allow status stage */
-                    nrf_drv_usbd_setup_clear();
-                }
+                /* Transfer ok - allow status stage */
+                nrf_drv_usbd_setup_clear();
             }
             else if (NRF_USBD_EP_ABORTED == p_event->data.eptransfer.status)
             {
@@ -888,13 +885,8 @@ static void usbd_event_handler(nrf_drv_usbd_evt_t const * const p_event)
              * The code is here as a pattern how to support such a transfer. */
             if (NRF_USBD_EP_OK == p_event->data.eptransfer.status)
             {
-                /* NOTE: Data values or size may be tested here to decide if clear or stall.
-                 * If errata 154 is present the data transfer is acknowledged by the hardware. */
-                if (!nrf_drv_usbd_errata_154())
-                {
-                    /* Transfer ok - allow status stage */
-                    nrf_drv_usbd_setup_clear();
-                }
+                /* Transfer ok - allow status stage */
+                nrf_drv_usbd_setup_clear();
             }
             else if (NRF_USBD_EP_ABORTED == p_event->data.eptransfer.status)
             {
@@ -916,7 +908,7 @@ static void usbd_event_handler(nrf_drv_usbd_evt_t const * const p_event)
         {
             nrf_drv_usbd_setup_t setup;
             nrf_drv_usbd_setup_get(&setup);
-            switch (setup.bmRequest)
+            switch (setup.bRequest)
             {
             case 0x00: // GetStatus
                 usbd_setup_GetStatus(&setup);
@@ -959,7 +951,7 @@ static void usbd_event_handler(nrf_drv_usbd_evt_t const * const p_event)
                 }
                 break;
             default:
-                NRF_LOG_ERROR("Unknown request: 0x%2x", setup.bmRequest);
+                NRF_LOG_ERROR("Unknown request: 0x%2x", setup.bRequest);
                 nrf_drv_usbd_setup_stall();
                 return;
             }
@@ -1067,7 +1059,7 @@ static void bsp_evt_handler(bsp_event_t evt)
         m_send_flag = 1;
         break;
     }
-    
+
     case BTN_DATA_KEY_RELEASE:
     {
         m_send_flag = 0;
@@ -1164,18 +1156,22 @@ static void log_resetreason(void)
     {
         NRF_LOG_INFO("- OFF");
     }
+#if defined(NRF_POWER_RESETREAS_LPCOMP_MASK)
     if (0 != (rr & NRF_POWER_RESETREAS_LPCOMP_MASK  ))
     {
         NRF_LOG_INFO("- LPCOMP");
     }
+#endif
     if (0 != (rr & NRF_POWER_RESETREAS_DIF_MASK     ))
     {
         NRF_LOG_INFO("- DIF");
     }
+#if defined(NRF_POWER_RESETREAS_NFC_MASK)
     if (0 != (rr & NRF_POWER_RESETREAS_NFC_MASK     ))
     {
         NRF_LOG_INFO("- NFC");
     }
+#endif
     if (0 != (rr & NRF_POWER_RESETREAS_VBUS_MASK    ))
     {
         NRF_LOG_INFO("- VBUS");
@@ -1192,11 +1188,6 @@ int main(void)
     init_cli();
 
     NRF_LOG_INFO("USDB example started.");
-    if (NRF_DRV_USBD_ERRATA_ENABLE)
-    {
-        NRF_LOG_INFO("USB errata 104 %s", (uint32_t)(nrf_drv_usbd_errata_104() ? "enabled" : "disabled"));
-        NRF_LOG_INFO("USB errata 154 %s", (uint32_t)(nrf_drv_usbd_errata_154() ? "enabled" : "disabled"));
-    }
     log_resetreason();
     nrf_power_resetreas_clear(nrf_power_resetreas_get());
 

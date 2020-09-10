@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2015 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2015 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #ifndef SECURITY_MANAGER_H__
 #define SECURITY_MANAGER_H__
@@ -141,6 +141,30 @@ ret_code_t sm_sec_params_reply(uint16_t               conn_handle,
  */
 ret_code_t sm_lesc_public_key_set(ble_gap_lesc_p256_pk_t * p_public_key);
 
+
+/**@brief Function for getting the security status of a connection.
+ *
+ * @param[in]  conn_handle        Connection handle of the link as provided by the SoftDevice.
+ * @param[out] p_conn_sec_status  Security status of the link.
+ *
+ * @retval NRF_SUCCESS                    If pairing was initiated successfully.
+ * @retval BLE_ERROR_INVALID_CONN_HANDLE  If the connection handle is invalid.
+ * @retval NRF_ERROR_NULL                 If @p p_conn_sec_status was NULL.
+ */
+ret_code_t sm_conn_sec_status_get(uint16_t conn_handle, pm_conn_sec_status_t * p_conn_sec_status);
+
+
+/**@brief Function for comparing the security status of a connection against a baseline.
+ *
+ * @param[in]  conn_handle       Connection handle of the link as provided by the SoftDevice.
+ * @param[out] p_sec_status_req  Target baseline security status to compare against.
+ *
+ * @retval true   If the security status of the connection matches or exceeds the baseline on all
+ *                points.
+ * @retval false  If the security status of the connection does not fulfill the baseline, or could
+ *                not be retrieved.
+ */
+bool sm_sec_is_sufficient(uint16_t conn_handle, pm_conn_sec_status_t * p_sec_status_req);
 
 
 /**@brief Function for initiating security on the link, with the specified parameters.

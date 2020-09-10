@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 /** @brief GATT Service client example application main file.
@@ -73,6 +73,7 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "peer_manager.h"
+#include "peer_manager_handler.h"
 #include "fds.h"
 #include "ble_conn_state.h"
 #include "nrf_pwr_mgmt.h"
@@ -89,6 +90,9 @@ NRF_BLE_GATT_DEF(m_gatt);                                           /**< GATT mo
 NRF_BLE_GATTS_C_DEF(m_gatts_c);                                     /**< GATT Service client instance. Handles Service Changed indications from the peer. */
 NRF_BLE_QWR_DEF(m_qwr);                                             /**< Context for the Queued Write module.*/
 BLE_DB_DISCOVERY_DEF(m_ble_db_discovery);                           /**< DB discovery module instance. */
+NRF_BLE_GQ_DEF(m_ble_gatt_queue,                                    /**< BLE GATT Queue instance. */
+               NRF_SDH_BLE_PERIPHERAL_LINK_COUNT,
+               NRF_BLE_GQ_QUEUE_SIZE);
 
 static bool    m_erase_bonds;                                       /**< Bool to determine if bonds should be erased before advertising starts. Based on button push upon startup. */
 
@@ -110,6 +114,16 @@ static uint8_t m_pm_peer_srv_buffer[ALIGN_NUM(4, sizeof(ble_gatt_db_srv_t))] = {
 void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 {
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
+}
+
+
+/**@brief Function for handling the GATT Service Client errors.
+ *
+ * @param[in]   nrf_error   Error code containing information about what went wrong.
+ */
+static void gatt_c_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
 }
 
 
@@ -250,20 +264,6 @@ static void gatts_evt_handler(nrf_ble_gatts_c_evt_t * p_evt)
 }
 
 
-/**@brief Function for handling File Data Storage events.
- *
- * @param[in] p_evt  Flash Data Storage event.
- *
- */
-static void fds_evt_handler(fds_evt_t const * const p_evt)
-{
-    if (p_evt->id == FDS_EVT_GC)
-    {
-        NRF_LOG_DEBUG("GC completed.");
-    }
-}
-
-
 /**@brief Function for handling Peer Manager events.
  *
  * @param[in] p_evt  Peer Manager event.
@@ -272,11 +272,13 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 {
     ret_code_t err_code;
 
+    pm_handler_on_pm_evt(p_evt);
+    pm_handler_flash_clean(p_evt);
+
     switch (p_evt->evt_id)
     {
         case PM_EVT_BONDED_PEER_CONNECTED:
         {
-            NRF_LOG_INFO("Connected to a previously bonded device.");
             pm_peer_id_t peer_id;
             err_code = pm_peer_id_get(p_evt->conn_handle, &peer_id);
             APP_ERROR_CHECK(err_code);
@@ -285,7 +287,7 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 
                 ble_gatt_db_srv_t * remote_db;
                 remote_db         = (ble_gatt_db_srv_t *)m_pm_peer_srv_buffer;
-                uint16_t data_len = sizeof(m_pm_peer_srv_buffer);
+                uint32_t data_len = sizeof(m_pm_peer_srv_buffer);
 
                 err_code = pm_peer_data_remote_db_load(peer_id, remote_db, &data_len);
                 if (err_code == NRF_ERROR_NOT_FOUND)
@@ -320,12 +322,6 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
         } break;
 
         case PM_EVT_CONN_SEC_SUCCEEDED:
-        {
-            NRF_LOG_INFO("Connection secured: role: %d, conn_handle: 0x%x, procedure: %d.",
-                         ble_conn_state_role(p_evt->conn_handle),
-                         p_evt->conn_handle,
-                         p_evt->params.conn_sec_succeeded.procedure);
-
             // Check it the Service Changed characteristic handle exists in our client instance.
             // If it is invalid, we know service discovery is needed.
             // (No database was loaded during @ref PM_EVT_BONDED_PEER_CONNECTED)
@@ -339,80 +335,13 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
                 err_code = ble_db_discovery_start(&m_ble_db_discovery, p_evt->conn_handle);
                 APP_ERROR_CHECK(err_code);
             }
-
-        } break;
-
-        case PM_EVT_CONN_SEC_FAILED:
-            // Often, when securing fails, it should not be restarted, for security reasons.
-            // Other times, it can be restarted directly.
-            // Sometimes it can be restarted, but only after changing some Security Parameters.
-            // Sometimes, it cannot be restarted until the link is disconnected and reconnected.
-            // Sometimes it is impossible to secure the link, or the peer device does not support it.
-            // How to handle this error is highly application dependent.
-            NRF_LOG_INFO("Connection security failed: role: %d, conn_handle: 0x%x, procedure: %d, error: %d.",
-                         ble_conn_state_role(p_evt->conn_handle),
-                         p_evt->conn_handle,
-                         p_evt->params.conn_sec_failed.procedure,
-                         p_evt->params.conn_sec_failed.error);
-            break;
-
-        case PM_EVT_CONN_SEC_CONFIG_REQ:
-        {
-            // Reject pairing request from an already bonded peer.
-            pm_conn_sec_config_t conn_sec_config = {.allow_repairing = false};
-            pm_conn_sec_config_reply(p_evt->conn_handle, &conn_sec_config);
-            break;
-        }
-
-        case PM_EVT_STORAGE_FULL:
-            // Run garbage collection on the flash.
-            err_code = fds_gc();
-            if (err_code == FDS_ERR_NO_SPACE_IN_QUEUES)
-            {
-                // Retry.
-            }
-            else
-            {
-                APP_ERROR_CHECK(err_code);
-            }
             break;
 
         case PM_EVT_PEERS_DELETE_SUCCEEDED:
             // Peer data was cleared from the flash. Start advertising with an empty list of peers.
-            NRF_LOG_DEBUG("PM_EVT_PEERS_DELETE_SUCCEEDED");
             advertising_start(false);
             break;
 
-        case PM_EVT_PEER_DATA_UPDATE_FAILED:
-            APP_ERROR_CHECK(p_evt->params.peer_data_update_failed.error);
-            break;
-
-        case PM_EVT_PEER_DELETE_FAILED:
-            APP_ERROR_CHECK(p_evt->params.peer_delete_failed.error);
-            break;
-
-        case PM_EVT_PEERS_DELETE_FAILED:
-            APP_ERROR_CHECK(p_evt->params.peers_delete_failed_evt.error);
-            break;
-
-        case PM_EVT_ERROR_UNEXPECTED:
-            APP_ERROR_CHECK(p_evt->params.error_unexpected.error);
-            break;
-
-        case PM_EVT_CONN_SEC_START:
-        // fall-through.
-        case PM_EVT_PEER_DATA_UPDATE_SUCCEEDED:
-        // fall-through.
-        case PM_EVT_PEER_DELETE_SUCCEEDED:
-        // fall-through.
-        case PM_EVT_LOCAL_DB_CACHE_APPLIED:
-        // fall-through.
-        case PM_EVT_LOCAL_DB_CACHE_APPLY_FAILED:
-            // This can happen when the local DB has changed.
-        case PM_EVT_SERVICE_CHANGED_IND_SENT:
-        // fall-through.
-        case PM_EVT_SERVICE_CHANGED_IND_CONFIRMED:
-        // fall-through.
         default:
             // No implementation needed.
             break;
@@ -448,9 +377,6 @@ void peer_manager_init(void)
     APP_ERROR_CHECK(err_code);
 
     err_code = pm_register(pm_evt_handler);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = fds_register(fds_evt_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -526,6 +452,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     ret_code_t err_code;
 
+    pm_handler_secure_on_connection(p_ble_evt);
+
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
@@ -598,7 +526,14 @@ static void ble_stack_init(void)
 */
 static void db_discovery_init(void)
 {
-    ret_code_t err_code = ble_db_discovery_init(db_disc_handler);
+    ble_db_discovery_init_t db_init;
+
+    memset(&db_init, 0, sizeof(db_init));
+
+    db_init.evt_handler  = db_disc_handler;
+    db_init.p_gatt_queue = &m_ble_gatt_queue;
+
+    ret_code_t err_code = ble_db_discovery_init(&db_init);
 
     APP_ERROR_CHECK(err_code);
 }
@@ -676,7 +611,9 @@ static void services_init(void)
     APP_ERROR_CHECK(err_code);
 
     // Initialize GATTS Client Module.
-    gatts_c_init.evt_handler = gatts_evt_handler;
+    gatts_c_init.evt_handler  = gatts_evt_handler;
+    gatts_c_init.err_handler  = gatt_c_error_handler;
+    gatts_c_init.p_gatt_queue = &m_ble_gatt_queue;
 
     err_code = nrf_ble_gatts_c_init(&m_gatts_c, &gatts_c_init);
     APP_ERROR_CHECK(err_code);

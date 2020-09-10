@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2018 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2018 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include <stdint.h>
@@ -61,8 +61,9 @@
 #include "nrf_balloc.h"
 #include "nfc_central_m.h"
 #include "nfc_ble_oob_advdata_parser.h"
+#include "nrf_ble_scan.h"
 
-#define APP_BLE_CONN_CFG_TAG           1 /**< A tag identifying the SoftDevice BLE configuration. */
+#define APP_BLE_CONN_CFG_TAG           1 /**< Tag that identifies the SoftDevice BLE configuration. */
 
 #define CENTRAL_SCANNING_LED           BSP_BOARD_LED_0
 #define CENTRAL_CONNECTED_LED          BSP_BOARD_LED_1
@@ -72,9 +73,8 @@
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(5000)                  /**< Time from initiating an event (connect or start of notification) to the first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(30000)                 /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
-#define MAX_CONN_PARAMS_UPDATE_COUNT   3                                      /**< Max count of connections parameters update. */
+#define MAX_CONN_PARAMS_UPDATE_COUNT   3                                      /**< Max count of connection parameter update. */
 
-#define SCAN_DURATION                  0x0000                                 /**< Duration of the scanning in units of 10 milliseconds. If set to 0x0000, scanning will continue until it is explicitly disabled. */
 #define APP_ADV_DURATION               18000                                  /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
 #define APP_FEATURE_NOT_SUPPORTED      BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2   /**< Reply when unsupported features are requested. */
@@ -82,31 +82,34 @@
 #define L2CAP_HDR_LEN                  4                                      /**< Length of a L2CAP header, in bytes. */
 #define BATTERY_INITIAL_LVL            100                                    /**< Battery initial level. */
 #define UUID_STRING_LEN                5                                      /**< UUID uint16_t string length. */
+#define UUID_16_POS                    12                                     /**< Position of 2 - bytes which identifies 16 UUID inside of 128 - bit UUID. */
+#define UUID_128_OFFSET                3                                      /**< Offset of 128 - bit UUID in declarative handle read response data. */
 
 /**@brief   Priority of the application BLE event handler.
- * @note    You should not need to modify this value.
+ * @note    There is no need to modify this value.
  */
 #define APP_BLE_OBSERVER_PRIO     1
 
 BLE_BAS_DEF(m_bas);
 NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
 BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
+NRF_BLE_SCAN_DEF(m_scan);           /**< Scanning Module instance. */
 
 // Structure storing data of all discovered services.
 typedef struct
 {
-    ble_gattc_service_t services[MAX_SERVICE_COUNT]; /**< Data of the found services. */
-    uint8_t             count;                       /**< Count of the found services. */
+    ble_gattc_service_t services[MAX_SERVICE_COUNT]; /**< Data of the services found. */
+    uint8_t             count;                       /**< Count of the services found. */
 } device_srv_t;
 
 
 typedef struct
 {
-    ble_uuid_t uuid;              /**< Characteristic UUID. */
-    uint16_t   decl_handle;       /**< Handle of the Characteristic Declaration. */
-    uint16_t   value_handle;      /**< Handle of the Characteristic Value. */
-    uint16_t   cccd_desc_handle;  /**< Handle of CCCD descriptors. */
-    bool       notify;            /**< True when notification of the value permitted. */
+    ble_uuid_t            uuid;              /**< UUID of the characteristic. */
+    uint16_t              decl_handle;       /**< Handle of the characteristic declaration. */
+    uint16_t              value_handle;      /**< Handle of the characteristic value. */
+    uint16_t              cccd_desc_handle;  /**< Handle of the CCCD descriptors. */
+    ble_gatt_char_props_t char_props;        /**< GATT Characteristic Properties. */
 } char_data_t;
 
 // Structure storing the data of all discovered characteristics.
@@ -116,22 +119,23 @@ typedef struct
     uint8_t     count;                               /**< Characteristics count. */
 } srv_char_t;
 
-scanned_device_t   m_device[DEVICE_TO_FIND_MAX];                 /**< Storage device info from scan data. */
-char               m_addr_str_for_connection[ADDR_STRING_LEN];   /**< Store device address as string for establishing a connection. */
-srv_char_t         m_srv_char;                                   /**< Storing all the characteristics data from one service to allow further operations. */
-uint16_t           m_desc_handle;                                /**< Found CCCD Descriptor handle. */
-device_srv_t     * mp_device_srv[NRF_BLE_LINK_COUNT];            /**< Pointers to allocated memory needed to discover the services on the server. */
+scanned_device_t   m_device[DEVICE_TO_FIND_MAX];                 /**< Stores device info from scan data. */
+char               m_addr_str_for_connection[ADDR_STRING_LEN];   /**< Stores device address as string for establishing a connection. */
+srv_char_t         m_srv_char;                                   /**< Stores all the characteristics data from one service to allow further operations. */
+uint16_t           m_desc_handle;                                /**< The CCCD descriptor handle found. */
+device_srv_t     * mp_device_srv[NRF_BLE_LINK_COUNT];            /**< Pointers to the allocated memory needed to discover the services on the server. */
 static bool        m_numeric_match_requested = false;            /**< Numeric match request. */
 static uint16_t    m_num_comp_conn_handle;                       /**< Numeric comparison connection handle. */
 static conn_peer_t m_connected_peers[NRF_BLE_LINK_COUNT];        /**< Connected devices data. */
-bool               m_scanning = false;                           /**< Variable informing about ongoing scanning. True when scan is on. */
-bool               m_vendor_uuid_read = false;                   /**< Variable informing about the read request for a 128-bit service UUID. */
+bool               m_scanning = false;                           /**< Variable that informs about the ongoing scanning. True when scan is ON. */
+bool               m_vendor_uuid_read = false;                   /**< Variable that informs about the read request for a 128-bit service UUID. */
+bool               m_vendor_char_uuid_read = false;              /**< Variable that informs about the read request for a 128-bit characteristic UUID. */
 uint8_t            m_uuid_attr_handle;
 
 NRF_BALLOC_DEF(m_srv_pool, sizeof(device_srv_t), NRF_BLE_LINK_COUNT);
 
-/**@brief UUIDs which the central applications will scan for if the name above is set to an empty string,
- * and which will be advertised by the peripherals.
+/**@brief UUIDs that the central application scans for if the name above is set to an empty string,
+ * and that are advertised by the peripherals.
  */
 ble_uuid_t m_adv_uuids[] = { { BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE },
                              { BLE_UUID_RUNNING_SPEED_AND_CADENCE, BLE_UUID_TYPE_BLE } };
@@ -141,28 +145,6 @@ static char * mp_roles_str[] =
     "INVALID_ROLE",
     "CENTRAL",
     "PERIPHERAL",
-};
-
-
-/**@brief Parameters used when scanning.
- */
-static ble_gap_scan_params_t const m_scan_params =
-{
-    .active            = 1,
-    .interval          = SCAN_INTERVAL,
-    .window            = SCAN_WINDOW,
-    .timeout           = SCAN_DURATION,
-    .scan_phys         = BLE_GAP_PHY_1MBPS,
-    .filter_policy     = BLE_GAP_SCAN_FP_ACCEPT_ALL,
-};
-
-static uint8_t m_scan_buffer_data[BLE_GAP_SCAN_BUFFER_MIN]; /**< Buffer where advertising reports will be stored by the SoftDevice. */
-
-/**@brief Pointer to the buffer where advertising reports will be stored by the SoftDevice. */
-static ble_data_t m_scan_buffer =
-{
-    m_scan_buffer_data,
-    BLE_GAP_SCAN_BUFFER_MIN
 };
 
 
@@ -179,14 +161,14 @@ static ble_gap_conn_params_t const m_connection_param =
 
 /**@brief Function for handling asserts in the SoftDevice.
  *
- * @details This function will be called in case of an assert in the SoftDevice.
+ * @details This function is called in case of an assert in the SoftDevice.
  *
- * @warning This handler is an example only and does not fit a final product. You need to analyze
+ * @warning This handler is an example only and is not meant for the final product. You need to analyze
  *          how your product is supposed to react in case of an assert.
  * @warning On assert from the SoftDevice, the system can only recover on reset.
  *
- * @param[in] line_num     Line number of the failing ASSERT call.
- * @param[in] p_file_name  File name of the failing ASSERT call.
+ * @param[in] line_num     Line number of the failing assert call.
+ * @param[in] p_file_name  File name of the failing assert call.
  */
 void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 {
@@ -198,7 +180,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 
 /**@brief Function for handling errors from the Connection Parameters module.
  *
- * @param[in] nrf_error  Error code containing information about what went wrong.
+ * @param[in] nrf_error  Error code that contains information about what went wrong.
  */
 static void conn_params_error_handler(uint32_t nrf_error)
 {
@@ -273,7 +255,9 @@ uint16_t cccd_descriptors_handle_get(char const * const p_char_uuid_str)
 
         sprintf(uuid_str, "%X", m_srv_char.char_data[i].uuid.uuid);
 
-        if ((!strcmp(uuid_str, p_char_uuid_str)) && m_srv_char.char_data[i].notify)
+        if ((!strcmp(uuid_str, p_char_uuid_str)) &&
+            (m_srv_char.char_data[i].char_props.notify ||
+             m_srv_char.char_data[i].char_props.indicate))
         {
            return m_srv_char.char_data[i].cccd_desc_handle;
         }
@@ -285,8 +269,8 @@ uint16_t cccd_descriptors_handle_get(char const * const p_char_uuid_str)
 
 /**@brief Function for searching for the CCCD of a characteristic.
  *
- * @param[in] char_uuid       Characteristic UUID.
- * @param[in] conn_handle     The connection handle identifying the connection to perform this procedure on.
+ * @param[in] char_uuid       UUID of the characteristic.
+ * @param[in] conn_handle     The connection handle that identifies the connection to perform this procedure on.
  */
 
 static void cccd_descriptors_search(uint16_t char_uuid, uint16_t conn_handle)
@@ -297,7 +281,7 @@ static void cccd_descriptors_search(uint16_t char_uuid, uint16_t conn_handle)
     uint16_t                 start_handle = 0;
     uint16_t                 end_handle   = 0;
 
-    // Searching for the initial characteristic's handle.
+    // Searching for the handle of the initial characteristic.
     for (i = 0; i < m_srv_char.count; i++)
     {
         if (m_srv_char.char_data[i].uuid.uuid == char_uuid)
@@ -307,20 +291,20 @@ static void cccd_descriptors_search(uint16_t char_uuid, uint16_t conn_handle)
         }
     }
 
-    // Searching for the final characteristic's handle if the characteristic is not last in the service.
+    // Searching for the handle of the final characteristic if the characteristic is not the last one in the service.
     if ((i < (m_srv_char.count - 1)) && (m_srv_char.char_data[i + 1].uuid.uuid != 0))
     {
-        // If the characteristic is not last, start a handle equal to the declaration handle of the next characteristic's Declaration Handle.
+        // If the characteristic is not the last one, start a handle equal to the declaration handle of the next characteristic's declaration handle.
         end_handle = m_srv_char.char_data[i + 1].decl_handle - 1;
     }
-    // Searching for the final characteristic handle if the characteristic is last in the service, the end handle is equal to the service end handle.
+    // Searching for the handle of the final characteristic. If the characteristic is the last one in the service, the end handle is equal to the service end handle.
     else
     {
         for (uint8_t j = 0; j < mp_device_srv[conn_handle]->count; j++)
         {
             if ((start_handle >
                  mp_device_srv[conn_handle]->services[j].handle_range.start_handle) &&
-                (start_handle < mp_device_srv[conn_handle]->services[j].handle_range.end_handle))
+                (start_handle <= mp_device_srv[conn_handle]->services[j].handle_range.end_handle))
             {
                 end_handle = mp_device_srv[conn_handle]->services[j].handle_range.end_handle;
                 break;
@@ -394,7 +378,7 @@ void link_layer_data_length_set(char * p_data_length, uint16_t conn_handle)
     // Check that new data length has a correct value.
     if ((value > (mtu + L2CAP_HDR_LEN)) || (value < (BLE_GATT_ATT_MTU_DEFAULT + L2CAP_HDR_LEN)))
     {
-        NRF_LOG_RAW_INFO("Data Length value should be less than: %d and bigger than %d\r\n", 
+        NRF_LOG_RAW_INFO("Data Length value must be less than %d and bigger than %d\r\n", 
                          (mtu + L2CAP_HDR_LEN), 
                          (BLE_GATT_ATT_MTU_DEFAULT + L2CAP_HDR_LEN));
         return;
@@ -420,7 +404,7 @@ void gatt_mtu_set(char const * const p_mtu_value)
         (mtu_val > NRF_SDH_BLE_GATT_MAX_MTU_SIZE))
     {
         NRF_LOG_RAW_INFO("%s %d - %d \r\n",
-                         "MTU value should be between",
+                         "MTU value must be between",
                          BLE_GATT_ATT_MTU_DEFAULT,
                          NRF_SDH_BLE_GATT_MAX_MTU_SIZE);
         return;
@@ -495,14 +479,14 @@ void int_addr_to_hex_str(char * p_result, uint8_t result_len, uint8_t const * co
 }
 
 
-/**@brief Function for printing the services UUID.
+/**@brief Function for printing the UUID for each service.
  *
  * @param[in] conn_handle    The connection handle identifying the connection to perform this procedure on.
  * @param[in] service_p      Pointer to ble_gattc_service_t.
  */
 static void uuid_print(uint16_t conn_handle, ble_gattc_service_t const * p_service)
 {
-    NRF_LOG_RAW_INFO("Found services UUID: \r\n");
+    NRF_LOG_RAW_INFO("Found service UUIDs: \r\n");
 
     for (uint8_t i = 0; i < mp_device_srv[conn_handle]->count; i++)
     {
@@ -512,6 +496,28 @@ static void uuid_print(uint16_t conn_handle, ble_gattc_service_t const * p_servi
                          "type", 
                          p_service[i].uuid.type);
     }
+}
+
+static void characteristics_print(void)
+{
+    for (uint8_t i = 0; i < m_srv_char.count; i++)
+    {
+           ble_gatt_char_props_t const * p_char_props = 
+                                 &m_srv_char.char_data[i].char_props;
+           NRF_LOG_RAW_INFO("Characteristic UUID: %X\r\n",
+                            m_srv_char.char_data[i].uuid.uuid);
+           NRF_LOG_RAW_INFO("Parameters:\r\n");
+           NRF_LOG_RAW_INFO("broadcast: %d ", p_char_props->broadcast);
+           NRF_LOG_RAW_INFO("read: %d ", p_char_props->read);
+           NRF_LOG_RAW_INFO("write_wo_resp: %d ", p_char_props->write_wo_resp);
+           NRF_LOG_RAW_INFO("write: %d ", p_char_props->write);
+           NRF_LOG_RAW_INFO("notify: %d\r\n", p_char_props->notify);
+           NRF_LOG_RAW_INFO("indicate: %d ", p_char_props->indicate);
+           NRF_LOG_RAW_INFO("auth_signed_wr: %d\r\n", p_char_props->auth_signed_wr);
+    }
+
+    NRF_LOG_RAW_INFO("Number of characteristics: %d\r\n", m_srv_char.count);
+
 }
 
 
@@ -681,11 +687,8 @@ static void nfc_central_connect(ble_gap_evt_t const        * p_gap_evt,
     // Check if device address is the same as the address taken from the NFC tag.
     if (nfc_oob_pairing_tag_match(p_peer_addr))
     {
-        // If the address is correct, stop scanning and initiate a connection with the peripheral device.
-        err_code = sd_ble_gap_scan_stop();
-        APP_ERROR_CHECK(err_code);
-
-        err_code = sd_ble_gap_connect(p_peer_addr, &m_scan_params,
+        // If the address is correct, initiate a connection with the peripheral device.
+        err_code = sd_ble_gap_connect(p_peer_addr, &m_scan.scan_params,
                                       &m_connection_param,
                                       APP_BLE_CONN_CFG_TAG);
         APP_ERROR_CHECK(err_code);
@@ -718,7 +721,7 @@ void private_connect(pm_peer_id_t const * p_peers_id)
            sizeof(public_addr));
 
      // Stop scanning.
-    (void)sd_ble_gap_scan_stop();
+    scan_stop();
 
     // Set device identities list.
     err_code = pm_device_identities_list_set(p_peers_id, 1);
@@ -727,7 +730,7 @@ void private_connect(pm_peer_id_t const * p_peers_id)
     scan_start();
 
     // Connect with device using privacy by public address.
-    err_code = sd_ble_gap_connect(&public_addr, &m_scan_params,
+    err_code = sd_ble_gap_connect(&public_addr, &m_scan.scan_params,
                                   &m_connection_param,
                                   APP_BLE_CONN_CFG_TAG);
     APP_ERROR_CHECK(err_code);
@@ -781,7 +784,7 @@ static void on_primary_srv_discovery_rsp(ble_gattc_evt_t const * p_ble_gattc_evt
         // If the last service has not been reached, this function must be called again with a new start handle.
         err_code = sd_ble_gattc_primary_services_discover(
             conn_handle,
-            p_prim_serv->services[count - 1].handle_range.end_handle,
+            p_prim_serv->services[count - 1].handle_range.end_handle + 1,
             NULL);
         APP_ERROR_CHECK(err_code);
     }
@@ -825,10 +828,14 @@ static void cccd_descriptors_discovery(ble_gattc_evt_t const * p_ble_gattc_evt)
     for (uint8_t i = 0; i < m_srv_char.count; i++)
     {
         // If it is possible to enable notification.
-        if (m_srv_char.char_data[i].notify)
+        if ((m_srv_char.char_data[i].char_props.notify ||
+             m_srv_char.char_data[i].char_props.indicate) &&
+            (m_srv_char.char_data[i].cccd_desc_handle == 0))
         {
             // Search for CCCD descriptor handle
             cccd_descriptors_search(m_srv_char.char_data[i].uuid.uuid, p_ble_gattc_evt->conn_handle);
+
+            break;
         }
     }
 }
@@ -841,7 +848,7 @@ static void cccd_descriptors_discovery(ble_gattc_evt_t const * p_ble_gattc_evt)
 static void on_characteristics_discovery_rsp(ble_gattc_evt_t const * p_ble_gattc_evt)
 {
     uint16_t        count;
-    static uint16_t offset = 0;;
+    static uint16_t offset = 0;
     uint16_t        bytes_to_copy;
     ret_code_t      err_code;
     uint16_t        conn_handle = p_ble_gattc_evt->conn_handle;
@@ -865,34 +872,16 @@ static void on_characteristics_discovery_rsp(ble_gattc_evt_t const * p_ble_gattc
         }
 
         // Save characteristics data.
-       for (uint8_t i = offset; i < bytes_to_copy; i++)
+       for (uint8_t i = 0; i < bytes_to_copy; i++)
        {
-           m_srv_char.char_data[i].decl_handle      = p_char_disc_rsp_evt->chars[i].handle_decl;
-           m_srv_char.char_data[i].value_handle     = p_char_disc_rsp_evt->chars[i].handle_value;
-           m_srv_char.char_data[i].uuid             = p_char_disc_rsp_evt->chars[i].uuid;
-           m_srv_char.char_data[i].notify           = p_char_disc_rsp_evt->chars[i].char_props.notify;
-           m_srv_char.char_data[i].cccd_desc_handle = 0;
-
-           offset++;
+           m_srv_char.char_data[i + offset].decl_handle      = p_char_disc_rsp_evt->chars[i].handle_decl;
+           m_srv_char.char_data[i + offset].value_handle     = p_char_disc_rsp_evt->chars[i].handle_value;
+           m_srv_char.char_data[i + offset].uuid             = p_char_disc_rsp_evt->chars[i].uuid;
+           m_srv_char.char_data[i + offset].char_props       = p_char_disc_rsp_evt->chars[i].char_props;
+           m_srv_char.char_data[i + offset].cccd_desc_handle = 0;
        }
 
-       // Display characteristics data.
-       for (uint8_t i = 0; i < offset; i++)
-       {
-           ble_gatt_char_props_t char_param =
-                p_ble_gattc_evt->params.char_disc_rsp.chars[i].char_props;
-
-           NRF_LOG_RAW_INFO("Characteristic UUID: %X\r\n",
-                            p_ble_gattc_evt->params.char_disc_rsp.chars[i].uuid.uuid);
-           NRF_LOG_RAW_INFO("Parameters:\r\n");
-           NRF_LOG_RAW_INFO("broadcast: %d ", char_param.broadcast);
-           NRF_LOG_RAW_INFO("read: %d ", char_param.read);
-           NRF_LOG_RAW_INFO("write_wo_resp: %d ", char_param.write_wo_resp);
-           NRF_LOG_RAW_INFO("write: %d ", char_param.write);
-           NRF_LOG_RAW_INFO("notify: %d\r\n", char_param.notify);
-           NRF_LOG_RAW_INFO("indicate: %d ", char_param.indicate);
-           NRF_LOG_RAW_INFO("auth_signed_wr: %d\r\n", char_param.auth_signed_wr);
-       }
+       offset += bytes_to_copy;
     }
     // If the last characteristic has not been reached, look for a new handle range.
     ble_gattc_handle_range_t handle_range;
@@ -902,8 +891,9 @@ static void on_characteristics_discovery_rsp(ble_gattc_evt_t const * p_ble_gattc
     // Search for end handle.
     for (uint8_t j = 0; j < mp_device_srv[conn_handle]->count; j++)
     {
-        if (handle_range.start_handle >
-             mp_device_srv[conn_handle]->services[j].handle_range.start_handle)
+        if ((handle_range.start_handle >
+             mp_device_srv[conn_handle]->services[j].handle_range.start_handle) &&
+            (handle_range.start_handle < mp_device_srv[conn_handle]->services[j].handle_range.end_handle))
         {
             handle_range.end_handle =
                 mp_device_srv[conn_handle]->services[j].handle_range.end_handle;
@@ -918,10 +908,24 @@ static void on_characteristics_discovery_rsp(ble_gattc_evt_t const * p_ble_gattc
         (offset == MAX_CHARACTERISTIC_COUNT) ||
         (p_ble_gattc_evt->gatt_status != BLE_GATT_STATUS_SUCCESS))
     {
-        NRF_LOG_RAW_INFO("Number of characteristics: %d\r\n", offset);
         m_srv_char.count = offset;
         offset           = 0;
 
+        for (uint8_t i = 0; i < m_srv_char.count; i++)
+        {
+            if (m_srv_char.char_data[i].uuid.type == BLE_UUID_TYPE_UNKNOWN)
+            {
+                m_vendor_char_uuid_read = true;
+                // Read char 128-bit UUID.
+                err_code = sd_ble_gattc_read(conn_handle, m_srv_char.char_data[i].decl_handle, 0);
+                APP_ERROR_CHECK(err_code);
+
+                return;
+            }
+        }
+
+        // Print characteristic data.
+        characteristics_print();
         // Search for the CCCD descriptors.
         cccd_descriptors_discovery(p_ble_gattc_evt);
 
@@ -966,12 +970,19 @@ static void on_descriptor_discovery_rsp(const ble_gattc_evt_t * const p_ble_gatt
         {
             for (uint8_t j = 0; j < m_srv_char.count; j++)
             {
-                if (m_srv_char.char_data[j].cccd_desc_handle == 0 && m_srv_char.char_data[j].notify)
+                if (m_srv_char.char_data[j].cccd_desc_handle == 0 &&
+                    (m_srv_char.char_data[j].char_props.notify ||
+                     m_srv_char.char_data[j].char_props.indicate))
                 {
                     m_srv_char.char_data[j].cccd_desc_handle =
                         p_ble_gattc_evt->params.desc_disc_rsp.descs[i].handle;
+                    
+                    break;
                 }
             }
+            
+            cccd_descriptors_discovery(p_ble_gattc_evt);
+
             return;
         }
     }
@@ -1039,6 +1050,9 @@ static void on_read_rsp(const ble_gattc_evt_t * const p_ble_gattc_evt)
                 //lint -restore
                 err_code = sd_ble_uuid_vs_add(&uuid, &mp_device_srv[conn_handle]->services[i].uuid.type);
                 APP_ERROR_CHECK(err_code);
+
+                mp_device_srv[conn_handle]->services[i].uuid.uuid = uint16_decode(&uuid.uuid128[UUID_16_POS]);
+
                 break;
             }
         }
@@ -1060,9 +1074,52 @@ static void on_read_rsp(const ble_gattc_evt_t * const p_ble_gattc_evt)
             {
                 NRF_LOG_INFO("Services count: %d", mp_device_srv[conn_handle]->count);
                 m_vendor_uuid_read = false;
-                // Print services UUID. When you first discover services, the 128-bit UUIDs may not be displayed.
-                // In such case, you should rediscover the services.
+                // Print services UUID.
                 uuid_print(p_ble_gattc_evt->conn_handle, mp_device_srv[conn_handle]->services);
+            }
+        }
+
+        return;
+    }
+
+    if (m_vendor_char_uuid_read)
+    {
+        for (uint8_t i = 0; i < m_srv_char.count; i++)
+        {
+            if (p_read_rsp->handle == m_srv_char.char_data[i].decl_handle)
+            {
+                //lint -save -e420
+                memcpy(uuid.uuid128, p_read_rsp->data + UUID_128_OFFSET, sizeof(uuid.uuid128));
+                //lint -restore
+                err_code = sd_ble_uuid_vs_add(&uuid, &m_srv_char.char_data[i].uuid.type);
+                APP_ERROR_CHECK(err_code);
+
+                m_srv_char.char_data[i].uuid.uuid = uint16_decode(&uuid.uuid128[UUID_16_POS]);
+
+                break;
+            }
+        }
+
+        // If characteristic UUID type is unknown, then try to search for the 128-bit UUID.
+        for (uint8_t i = 0; i < m_srv_char.count; i++)
+        {
+            if (m_srv_char.char_data[i].uuid.type == BLE_UUID_TYPE_UNKNOWN)
+            {
+                m_vendor_char_uuid_read = true;
+                // Look for service 128-bit UUID.
+                err_code = sd_ble_gattc_read(conn_handle, m_srv_char.char_data[i].decl_handle, 0);
+                APP_ERROR_CHECK(err_code);
+                return;
+            }
+
+            // If characteristic is last.
+            if (i == (m_srv_char.count - 1))
+            {
+                m_vendor_char_uuid_read = false;
+                // Print characteristics data.
+                characteristics_print();
+                // Search for the CCCD descriptors.
+                cccd_descriptors_discovery(p_ble_gattc_evt);
             }
         }
 
@@ -1255,12 +1312,12 @@ static void on_ble_evt(uint16_t conn_handle, ble_evt_t const * p_ble_evt)
 }
 
 
-/**@brief Function for handling BLE Stack events concerning central applications.
+/**@brief Function for handling BLE Stack events that concern the central application.
  *
- * @details This function keeps the connection handles of central applications up-to-date. It
+ * @details This function keeps the connection handles of the central application up-to-date. It
  * parses scanning reports, initiating a connection attempt to peripherals,
  * and manages connection parameter update requests. Additionally, it updates the status
- * of LEDs used to report central applications' activity.
+ * of LEDs used to report the central application's activity.
  *
  * @note        Since this function updates the connection handles, @ref BLE_GAP_EVT_DISCONNECTED events
  *              should be dispatched to the target application before invoking this function.
@@ -1311,7 +1368,8 @@ static void on_ble_central_evt(ble_evt_t const * p_ble_evt)
                 // Initiate connection.
                 NRF_LOG_INFO("CENTRAL: Connecting...");
                 err_code = sd_ble_gap_connect(&p_gap_evt->params.adv_report.peer_addr,
-                                              &m_scan_params, &m_connection_param,
+                                              &m_scan.scan_params, 
+                                              &m_connection_param,
                                               APP_BLE_CONN_CFG_TAG);
 
                 if (err_code != NRF_SUCCESS)
@@ -1319,11 +1377,6 @@ static void on_ble_central_evt(ble_evt_t const * p_ble_evt)
                     NRF_LOG_DEBUG("Connection Request Failed, reason %d", err_code);
                     return;
                 }
-            }
-            else
-            {
-                err_code = sd_ble_gap_scan_start(NULL, &m_scan_buffer);
-                APP_ERROR_CHECK(err_code);
             }
 
             // If pairing request in NFC central role, then compare data and connect.
@@ -1572,14 +1625,12 @@ void scan_start(void)
 {
     ret_code_t err_code;
 
-    (void)sd_ble_gap_scan_stop();
-
     //Clear the current device address.
     memset(m_addr_str_for_connection, 0, sizeof(m_addr_str_for_connection));
 
     connect_addr_clear();
 
-    err_code = sd_ble_gap_scan_start(&m_scan_params, &m_scan_buffer);
+    err_code = nrf_ble_scan_start(&m_scan);
     APP_ERROR_CHECK(err_code);
 
     bsp_board_led_on(CENTRAL_SCANNING_LED);
@@ -1593,7 +1644,7 @@ void scan_start(void)
  */
 void scan_stop(void)
 {
-    (void)sd_ble_gap_scan_stop();
+    nrf_ble_scan_stop();
     bsp_board_led_off(CENTRAL_SCANNING_LED);
     m_scanning = false;
 }
@@ -1841,6 +1892,17 @@ void advertising_init(void)
 }
 
 
+/**@brief Function for initialization Scanning Module.
+ */
+static void scan_init(void)
+{
+    ret_code_t err_code;
+
+    err_code = nrf_ble_scan_init(&m_scan, NULL, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
 /**
  * @brief Function for initializing a block allocator.
  */
@@ -1871,12 +1933,8 @@ static void bas_init(void)
     bas_init_struct.initial_batt_level   = initial_batt_lvl;
 
     // Require LESC with MITM (Numeric Comparison)
-    BLE_GAP_CONN_SEC_MODE_SET_LESC_ENC_WITH_MITM(&bas_init_struct.battery_level_char_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&bas_init_struct.battery_level_char_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&bas_init_struct.battery_level_char_attr_md.write_perm);
-
-    // Require LESC with MITM (Numeric Comparison)
-    BLE_GAP_CONN_SEC_MODE_SET_LESC_ENC_WITH_MITM(&bas_init_struct.battery_level_report_read_perm);
+    bas_init_struct.bl_cccd_wr_sec   = SEC_MITM;
+    bas_init_struct.bl_report_rd_sec = SEC_MITM;
 
     err_code = ble_bas_init(&m_bas, &bas_init_struct);
     APP_ERROR_CHECK(err_code);
@@ -1889,6 +1947,7 @@ void ble_m_init(void)
     balloc_init();
     buttons_leds_init();
     ble_stack_init();
+    scan_init();
     gap_params_init();
     gatt_init();
     bas_init();

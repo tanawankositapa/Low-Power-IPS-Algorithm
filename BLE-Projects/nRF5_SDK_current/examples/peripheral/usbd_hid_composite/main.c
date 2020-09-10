@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -64,6 +64,7 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#if NRF_CLI_ENABLED
 /**
  * @brief CLI interface over UART
  */
@@ -73,6 +74,7 @@ NRF_CLI_DEF(m_cli_uart,
             &m_cli_uart_transport.transport,
             '\r',
             4);
+#endif
 
 /**
  * @brief Enable USB power detection
@@ -113,6 +115,10 @@ NRF_CLI_DEF(m_cli_uart,
  */
 #define CONFIG_KBD_LETTER APP_USBD_HID_KBD_G
 
+/**
+ * @brief Propagate SET_PROTOCOL command to other HID instance
+ */
+#define PROPAGATE_PROTOCOL  0
 
 
 #define LED_CAPSLOCK       (BSP_BOARD_LED_0) /**< CAPSLOCK */
@@ -232,6 +238,18 @@ static void hid_mouse_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         case APP_USBD_HID_USER_EVT_IN_REPORT_DONE:
             bsp_board_led_invert(LED_HID_REP);
             break;
+        case APP_USBD_HID_USER_EVT_SET_BOOT_PROTO:
+            UNUSED_RETURN_VALUE(hid_mouse_clear_buffer(p_inst));
+#if PROPAGATE_PROTOCOL
+            hid_kbd_on_set_protocol(&m_app_hid_kbd, APP_USBD_HID_USER_EVT_SET_BOOT_PROTO);
+#endif
+            break;
+        case APP_USBD_HID_USER_EVT_SET_REPORT_PROTO:
+            UNUSED_RETURN_VALUE(hid_mouse_clear_buffer(p_inst));
+#if PROPAGATE_PROTOCOL
+            hid_kbd_on_set_protocol(&m_app_hid_kbd, APP_USBD_HID_USER_EVT_SET_REPORT_PROTO);
+#endif
+            break;
         default:
             break;
     }
@@ -255,6 +273,18 @@ static void hid_kbd_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         case APP_USBD_HID_USER_EVT_IN_REPORT_DONE:
             bsp_board_led_invert(LED_HID_REP);
+            break;
+        case APP_USBD_HID_USER_EVT_SET_BOOT_PROTO:
+            UNUSED_RETURN_VALUE(hid_kbd_clear_buffer(p_inst));
+#if PROPAGATE_PROTOCOL
+            hid_mouse_on_set_protocol(&m_app_hid_mouse, APP_USBD_HID_USER_EVT_SET_BOOT_PROTO);
+#endif
+            break;
+        case APP_USBD_HID_USER_EVT_SET_REPORT_PROTO:
+            UNUSED_RETURN_VALUE(hid_kbd_clear_buffer(p_inst));
+#if PROPAGATE_PROTOCOL
+            hid_mouse_on_set_protocol(&m_app_hid_mouse, APP_USBD_HID_USER_EVT_SET_REPORT_PROTO);
+#endif
             break;
         default:
             break;
@@ -382,6 +412,7 @@ static void init_bsp(void)
     bsp_board_init(BSP_INIT_LEDS);
 }
 
+#if NRF_CLI_ENABLED
 static void init_cli(void)
 {
     ret_code_t ret;
@@ -396,6 +427,7 @@ static void init_cli(void)
     ret = nrf_cli_start(&m_cli_uart);
     APP_ERROR_CHECK(ret);
 }
+#endif
 
 int main(void)
 {
@@ -423,7 +455,10 @@ int main(void)
     APP_ERROR_CHECK(ret);
 
     init_bsp();
+
+#if NRF_CLI_ENABLED
     init_cli();
+#endif
 
     ret = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(ret);
@@ -467,7 +502,9 @@ int main(void)
         {
             /* Nothing to do */
         }
+#if NRF_CLI_ENABLED
         nrf_cli_process(&m_cli_uart);
+#endif
 
         UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
         /* Sleep CPU only if there was no interrupt since last loop processing */

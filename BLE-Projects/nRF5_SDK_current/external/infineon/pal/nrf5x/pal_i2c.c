@@ -1,12 +1,26 @@
 /**
-* \copyright
-* Copyright(c) 2018, Infineon Technologies AG
-* All rights reserved.
+* MIT License
 *
-* This software is provided with terms and conditions as specified in OPTIGA(TM) Trust X Evaluation Kit License Agreement.
-* \endcopyright
+* Copyright (c) 2018 Infineon Technologies AG
 *
-* \author Infineon AG
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE
+*
 *
 * \file
 *
@@ -19,9 +33,12 @@
 /**********************************************************************************************************************
  * HEADER FILES
  *********************************************************************************************************************/
-#include "pal_i2c.h"
-#include "ifx_i2c.h"
+#include "optiga/pal/pal_i2c.h"
+#include "optiga/ifx_i2c/ifx_i2c.h"
 #include "nrf_twi_mngr.h"
+#include "pal_pin_config.h"
+
+#include <stdbool.h>
 
 /// @cond hidden
 
@@ -29,11 +46,6 @@
  * MACROS
  *********************************************************************************************************************/
 #define PAL_I2C_MASTER_MAX_BITRATE  (400)
-
-/** @brief PIN for I2C SCL to Infineon OPTIGA Trust X device */
-#define OPTIGA_PIN_I2C_SCL   (27)
-/** @brief PIN for I2C SDA to Infineon OPTIGA Trust X device */
-#define OPTIGA_PIN_I2C_SDA   (26)
 
 /** @brief I2C driver instance */
 #define TWI_INSTANCE_ID             0
@@ -49,13 +61,19 @@
 static pal_i2c_t * gp_pal_i2c_current_ctx;
 
 /** @brief Definition of TWI manager instance */
+#ifndef IFX_2GO_SUPPORT
 NRF_TWI_MNGR_DEF(m_app_twi, MAX_PENDING_TRANSACTIONS, TWI_INSTANCE_ID);
+#else
+nrf_twi_mngr_t m_app_twi;
+#endif
 
 /** @brief Definition of TWI manager transfer instance */
 static nrf_twi_mngr_transfer_t    m_transfer;
 
 /** @brief Definition of TWI manager transaction instance */
 static nrf_twi_mngr_transaction_t m_transaction;
+
+static bool initialized = false;
 
 /**********************************************************************************************************************
  * LOCAL ROUTINES
@@ -109,7 +127,7 @@ static void app_twi_callback(ret_code_t result, void * p_user_data)
  *   - The implementation must handle the acquiring and releasing of the I2C bus before initializing the I2C master to
  *     avoid interrupting the ongoing slave I2C transactions using the same I2C master.
  *   - If the I2C bus is in busy state, the API must not initialize and return #PAL_STATUS_I2C_BUSY status.
- *   - Repeated initialization must be taken care with respect to the platform requirements. (Example: Multiple users/applications  
+ *   - Repeated initialization must be taken care with respect to the platform requirements. (Example: Multiple users/applications
  *     sharing the same I2C master resource)
  *
  *<b>User Input:</b><br>
@@ -122,19 +140,37 @@ static void app_twi_callback(ret_code_t result, void * p_user_data)
  */
 pal_status_t pal_i2c_init(const pal_i2c_t* p_i2c_context)
 {
+#ifndef IFX_2GO_SUPPORT
     nrf_drv_twi_config_t const config = {
-           .scl                = OPTIGA_PIN_I2C_SCL,
-           .sda                = OPTIGA_PIN_I2C_SDA,
-           .frequency          = (nrf_drv_twi_frequency_t) NRF_TWI_FREQ_400K,
-           .interrupt_priority = APP_IRQ_PRIORITY_LOWEST,
-           .clear_bus_init     = false
-        };
+       .scl                = OPTIGA_PIN_I2C_SCL,
+       .sda                = OPTIGA_PIN_I2C_SDA,
+       .frequency          = NRF_DRV_TWI_FREQ_400K,
+       .interrupt_priority = APP_IRQ_PRIORITY_LOWEST,
+       .clear_bus_init     = false
+    };
+#else
+    #include "ifx_2go_common.h"
+    nrf_drv_twi_config_t const config = {
+       .scl                = ifx_2go_pin_config()->scl,
+       .sda                = ifx_2go_pin_config()->sda,
+       .frequency          = NRF_TWI_FREQ_400K,
+       .interrupt_priority = APP_IRQ_PRIORITY_LOWEST,
+       .clear_bus_init     = false
+    };
+#endif
+
+    if(initialized)
+    {
+        nrf_twi_mngr_uninit(&m_app_twi);
+    }
 
     // Initialize I2C driver
     if (nrf_twi_mngr_init(&m_app_twi, &config) != NRF_SUCCESS)
     {
-        return PAL_STATUS_FAILURE;
+            return PAL_STATUS_FAILURE;
     }
+
+    initialized = true;
     return PAL_STATUS_SUCCESS;
 }
 
@@ -162,7 +198,10 @@ pal_status_t pal_i2c_init(const pal_i2c_t* p_i2c_context)
  */
 pal_status_t pal_i2c_deinit(const pal_i2c_t* p_i2c_context)
 {
-    nrf_twi_mngr_uninit(&m_app_twi);
+    if(initialized) {
+        nrf_twi_mngr_uninit(&m_app_twi);
+    }
+    initialized = false;
     return PAL_STATUS_SUCCESS;
 }
 
@@ -186,7 +225,7 @@ pal_status_t pal_i2c_deinit(const pal_i2c_t* p_i2c_context)
  * - The input #pal_i2c_t p_i2c_context must not be NULL.<br>
  * - The upper_layer_event_handler must be initialized in the p_i2c_context before invoking the API.<br>
  *
- *<b>Notes:</b><br> 
+ *<b>Notes:</b><br>
  *  - Otherwise the below implementation has to be updated to handle different bitrates based on the input context.<br>
  *  - The caller of this API must take care of the guard time based on the slave's requirement.<br>
  *
@@ -196,7 +235,7 @@ pal_status_t pal_i2c_deinit(const pal_i2c_t* p_i2c_context)
  *
  * \retval  #PAL_STATUS_SUCCESS  Returns when the I2C write is invoked successfully
  * \retval  #PAL_STATUS_FAILURE  Returns when the I2C write fails.
- * \retval  #PAL_STATUS_I2C_BUSY Returns when the I2C bus is busy. 
+ * \retval  #PAL_STATUS_I2C_BUSY Returns when the I2C bus is busy.
  */
 pal_status_t pal_i2c_write(pal_i2c_t* p_i2c_context,uint8_t* p_data , uint16_t length)
 {
@@ -240,7 +279,7 @@ pal_status_t pal_i2c_write(pal_i2c_t* p_i2c_context,uint8_t* p_data , uint16_t l
  * - The input #pal_i2c_t p_i2c_context must not be NULL.<br>
  * - The upper_layer_event_handler must be initialized in the p_i2c_context before invoking the API.<br>
  *
- *<b>Notes:</b><br> 
+ *<b>Notes:</b><br>
  *  - Otherwise the below implementation has to be updated to handle different bitrates based on the input context.<br>
  *  - The caller of this API must take care of the guard time based on the slave's requirement.<br>
  *
@@ -274,7 +313,7 @@ pal_status_t pal_i2c_read(pal_i2c_t* p_i2c_context , uint8_t* p_data , uint16_t 
 
     return PAL_STATUS_SUCCESS;
 }
-   
+
 /**
  * Platform abstraction layer API to set the bitrate/speed(KHz) of I2C master.
  * <br>
@@ -282,14 +321,14 @@ pal_status_t pal_i2c_read(pal_i2c_t* p_i2c_context , uint8_t* p_data , uint16_t 
  *<b>API Details:</b>
  * - Sets the bitrate of I2C master if the I2C bus is free, else it returns busy status #PAL_STATUS_I2C_BUSY<br>
  * - The bus is released after the setting the bitrate.<br>
- * - This API must take care of setting the bitrate to I2C master's maximum supported value. 
- * - Eg. In XMC4500, the maximum supported bitrate is 400 KHz. If the supplied bitrate is greater than 400KHz, the API will 
+ * - This API must take care of setting the bitrate to I2C master's maximum supported value.
+ * - Eg. In XMC4500, the maximum supported bitrate is 400 KHz. If the supplied bitrate is greater than 400KHz, the API will
  *   set the I2C master's bitrate to 400KHz.
  * - Use the #PAL_I2C_MASTER_MAX_BITRATE macro to specify the maximum supported bitrate value for the target platform.
- * - If upper_layer_event_handler is initialized, the upper layer handler is invoked with the respective event 
+ * - If upper_layer_event_handler is initialized, the upper layer handler is invoked with the respective event
  *   status listed below.
  *   - #PAL_I2C_EVENT_BUSY when I2C bus in busy state
- *   - #PAL_I2C_EVENT_ERROR when API fails to set the bit rate 
+ *   - #PAL_I2C_EVENT_ERROR when API fails to set the bit rate
  *   - #PAL_I2C_EVENT_SUCCESS when operation is successful
  *<br>
  *
@@ -308,6 +347,13 @@ pal_status_t pal_i2c_set_bitrate(const pal_i2c_t* p_i2c_context , uint16_t bitra
     // Bitrate is fixed to the maximum frequency on this platform (400K)
     return PAL_STATUS_SUCCESS;
 }
+
+#ifdef IFX_2GO_SUPPORT
+pal_status_t pal_i2c_set_instance(nrf_twi_mngr_t* twi_inst)
+{
+        m_app_twi = *twi_inst;
+}
+#endif/*IFX_2GO_SUPPORT*/
 
 /**
 * @}

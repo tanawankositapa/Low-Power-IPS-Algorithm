@@ -1,12 +1,20 @@
 /**
-@page nrf52810_drivers nRF52810 Drivers
+@page nrf52810_drivers nRF52810/nRF52811 Drivers
 @{
+
+@ref nrf_aar
+
+@ref nrf_bprot
+
+@ref nrf_ccm
 
 @ref nrf_clock
 
 @ref nrf_comp
 
 @ref nrf_ecb
+
+@ref nrf_ficr
 
 @ref nrf_gpio
 
@@ -24,11 +32,15 @@
 
 @ref nrf_qdec
 
+@ref nrf_radio
+
 @ref nrf_rng
 
 @ref nrf_rtc
 
 @ref nrf_saadc
+
+@ref nrf_spi
 
 @ref nrf_spim
 
@@ -42,9 +54,13 @@
 
 @ref nrf_timer
 
+@ref nrf_twi
+
 @ref nrf_twim
 
 @ref nrf_twis
+
+@ref nrf_uart
 
 @ref nrf_uarte
 

@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2015 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2015 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include  "sdk_common.h"
 #if NRF_MODULE_ENABLED(BLE_ADVERTISING)
@@ -43,10 +43,8 @@
 #include "ble_advertising.h"
 #include "nrf_soc.h"
 #include "nrf_log.h"
-#include "nrf_fstorage.h"
 #include "sdk_errors.h"
 #include "nrf_sdh_ble.h"
-#include "nrf_sdh_soc.h"
 
 #define BLE_ADV_MODES (5) /**< Total number of possible advertising modes. */
 
@@ -153,16 +151,6 @@ static void on_terminated(ble_advertising_t * const p_advertising, ble_evt_t con
 }
 
 
-/** @brief Function to determine if a flash write operation in in progress.
- *
- * @return true if a flash operation is in progress, false if not.
- */
-static bool flash_access_in_progress()
-{
-    return nrf_fstorage_is_busy(NULL);
-}
-
-
 /**@brief Get the next available advertising mode.
  *
  * @param[in] p_advertising Advertising module instance.
@@ -248,18 +236,18 @@ static ret_code_t set_adv_mode_directed(ble_advertising_t * const p_advertising,
                                         ble_gap_adv_params_t    * p_adv_params)
 {
     p_advertising->adv_evt = BLE_ADV_EVT_DIRECTED;
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     if (p_advertising->adv_modes_config.ble_adv_extended_enabled)
     {
         p_adv_params->properties.type = BLE_GAP_ADV_TYPE_EXTENDED_CONNECTABLE_NONSCANNABLE_DIRECTED;
     }
     else
     {
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312)
         p_adv_params->properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_NONSCANNABLE_DIRECTED;
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     }
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312) && !defined(S113)
     p_adv_params->duration = p_advertising->adv_modes_config.ble_adv_directed_timeout;
 
     p_advertising->p_adv_data = NULL;
@@ -322,18 +310,18 @@ static ret_code_t set_adv_mode_fast(ble_advertising_t * const p_advertising,
     p_adv_params->interval = p_advertising->adv_modes_config.ble_adv_fast_interval;
     p_adv_params->duration = p_advertising->adv_modes_config.ble_adv_fast_timeout;
 
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     if (p_advertising->adv_modes_config.ble_adv_extended_enabled)
     {
         p_advertising->adv_params.properties.type = BLE_GAP_ADV_TYPE_EXTENDED_CONNECTABLE_NONSCANNABLE_UNDIRECTED;
     }
     else
     {
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312) && !defined(S113)
         p_advertising->adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     }
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312) && !defined(S113)
  
     if (use_whitelist(p_advertising))
     {
@@ -369,18 +357,18 @@ static ret_code_t set_adv_mode_slow(ble_advertising_t * const p_advertising,
     p_adv_params->interval = p_advertising->adv_modes_config.ble_adv_slow_interval;
     p_adv_params->duration = p_advertising->adv_modes_config.ble_adv_slow_timeout;
 
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     if (p_advertising->adv_modes_config.ble_adv_extended_enabled)
     {
         p_advertising->adv_params.properties.type = BLE_GAP_ADV_TYPE_EXTENDED_CONNECTABLE_NONSCANNABLE_UNDIRECTED;
     }
     else
     {
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312) && !defined(S113)
         p_advertising->adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
-#if !defined (S112)
+#if !defined (S112) && !defined(S312) && !defined(S113)
     }
-#endif // !defined (S112)
+#endif // !defined (S112) && !defined(S312) && !defined(S113)
 
     if (use_whitelist(p_advertising))
     {
@@ -432,6 +420,33 @@ static bool config_is_valid(ble_adv_modes_config_t const * const p_config)
 }
 
 
+/**@brief Function for getting the maximum size of the advertising data buffer.
+ *
+ * @param[in] p_advertising Advertising module instance.
+ *
+ * @returns The maximum size of the advertising data buffer.
+ */
+static uint16_t adv_set_data_size_max_get(ble_advertising_t const * const p_advertising)
+{
+    uint16_t adv_set_data_size_max;
+
+    if (p_advertising->adv_modes_config.ble_adv_extended_enabled == true)
+    {
+#ifdef BLE_GAP_ADV_SET_DATA_SIZE_EXTENDED_CONNECTABLE_MAX_SUPPORTED
+        adv_set_data_size_max = BLE_GAP_ADV_SET_DATA_SIZE_EXTENDED_CONNECTABLE_MAX_SUPPORTED;
+#else
+        adv_set_data_size_max = BLE_GAP_ADV_SET_DATA_SIZE_MAX;
+#endif // BLE_GAP_ADV_SET_DATA_SIZE_EXTENDED_CONNECTABLE_MAX_SUPPORTED
+    }
+    else
+    {
+        adv_set_data_size_max = BLE_GAP_ADV_SET_DATA_SIZE_MAX;
+    }
+
+    return adv_set_data_size_max;
+}
+
+
 void ble_advertising_conn_cfg_tag_set(ble_advertising_t * const p_advertising,
                                       uint8_t                   ble_cfg_tag)
 {
@@ -467,27 +482,19 @@ uint32_t ble_advertising_init(ble_advertising_t            * const p_advertising
     {
         p_advertising->adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;
     }
-    p_advertising->adv_data.adv_data.p_data = p_advertising->enc_advdata;
-    p_advertising->adv_data.adv_data.len    = BLE_GAP_ADV_SET_DATA_SIZE_MAX;
+    p_advertising->adv_data.adv_data.p_data = p_advertising->enc_advdata[0];
+    p_advertising->adv_data.adv_data.len = adv_set_data_size_max_get(p_advertising);
 
-    ret = ble_advdata_encode(&p_init->advdata, p_advertising->enc_advdata, &p_advertising->adv_data.adv_data.len);
+    ret = ble_advdata_encode(&p_init->advdata, p_advertising->enc_advdata[0], &p_advertising->adv_data.adv_data.len);
     VERIFY_SUCCESS(ret);
 
-    if (&p_init->srdata != NULL)
-    {
-        p_advertising->adv_data.scan_rsp_data.p_data = p_advertising->enc_scan_rsp_data;
-        p_advertising->adv_data.scan_rsp_data.len    = BLE_GAP_ADV_SET_DATA_SIZE_MAX;
+    p_advertising->adv_data.scan_rsp_data.p_data = p_advertising->enc_scan_rsp_data[0];
+    p_advertising->adv_data.scan_rsp_data.len = adv_set_data_size_max_get(p_advertising);
 
-        ret = ble_advdata_encode(&p_init->srdata,
-                                  p_advertising->adv_data.scan_rsp_data.p_data,
-                                 &p_advertising->adv_data.scan_rsp_data.len);
-        VERIFY_SUCCESS(ret);
-    }
-    else
-    {
-        p_advertising->adv_data.scan_rsp_data.p_data = NULL;
-        p_advertising->adv_data.scan_rsp_data.len    = 0;
-    }
+    ret = ble_advdata_encode(&p_init->srdata,
+                              p_advertising->adv_data.scan_rsp_data.p_data,
+                             &p_advertising->adv_data.scan_rsp_data.len);
+    VERIFY_SUCCESS(ret);
 
     // Configure a initial advertising configuration. The advertising data and and advertising
     // parameters will be changed later when we call @ref ble_advertising_start, but must be set
@@ -544,14 +551,7 @@ uint32_t ble_advertising_start(ble_advertising_t * const p_advertising,
 
     p_advertising->adv_mode_current = advertising_mode;
 
-    // Delay starting advertising until the flash operations are complete.
-    if (flash_access_in_progress())
-    {
-        p_advertising->advertising_start_pending = true;
-        return NRF_SUCCESS;
-    }
-
-   memset(&p_advertising->peer_address, 0, sizeof(p_advertising->peer_address));
+    memset(&p_advertising->peer_address, 0, sizeof(p_advertising->peer_address));
 
     if (  ((p_advertising->adv_modes_config.ble_adv_directed_high_duty_enabled) && (p_advertising->adv_mode_current == BLE_ADV_MODE_DIRECTED_HIGH_DUTY))
         ||((p_advertising->adv_modes_config.ble_adv_directed_enabled)           && (p_advertising->adv_mode_current == BLE_ADV_MODE_DIRECTED_HIGH_DUTY))
@@ -604,7 +604,7 @@ uint32_t ble_advertising_start(ble_advertising_t * const p_advertising,
     if (p_advertising->adv_modes_config.ble_adv_extended_enabled)
     {
         // Use 1MBIT as secondary phy if no phy was selected.
-        if (phy_is_valid(&p_advertising->adv_modes_config.ble_adv_primary_phy))
+        if (phy_is_valid(&p_advertising->adv_modes_config.ble_adv_secondary_phy))
         {
             p_advertising->adv_params.secondary_phy = p_advertising->adv_modes_config.ble_adv_secondary_phy;
         }
@@ -693,36 +693,6 @@ void ble_advertising_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 }
 
 
-void ble_advertising_on_sys_evt(uint32_t evt_id, void * p_context)
-{
-    ble_advertising_t * p_advertising = (ble_advertising_t *)p_context;
-
-    switch (evt_id)
-    {
-        //When a flash operation finishes, re-attempt to start advertising operations.
-        case NRF_EVT_FLASH_OPERATION_SUCCESS:
-        case NRF_EVT_FLASH_OPERATION_ERROR:
-        {
-            if (p_advertising->advertising_start_pending)
-            {
-                p_advertising->advertising_start_pending = false;
-                ret_code_t ret = ble_advertising_start(p_advertising,
-                                                       p_advertising->adv_mode_current);
-
-                if ((ret != NRF_SUCCESS) && (p_advertising->error_handler != NULL))
-                {
-                    p_advertising->error_handler(ret);
-                }
-            }
-        } break;
-
-        default:
-            // No implementation needed.
-            break;
-    }
-}
-
-
 uint32_t ble_advertising_peer_addr_reply(ble_advertising_t * const p_advertising,
                                          ble_gap_addr_t          * p_peer_address)
 {
@@ -784,6 +754,59 @@ void ble_advertising_modes_config_set(ble_advertising_t            * const p_adv
                                       ble_adv_modes_config_t const * const p_adv_modes_config)
 {
     p_advertising->adv_modes_config = *p_adv_modes_config;
+}
+
+
+ret_code_t ble_advertising_advdata_update(ble_advertising_t   * const p_advertising,
+                                          ble_advdata_t const * const p_advdata,
+                                          ble_advdata_t const * const p_srdata)
+{
+    VERIFY_PARAM_NOT_NULL(p_advertising);
+    if (p_advertising->initialized == false)
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+    if ((p_advdata == NULL) && (p_srdata == NULL))
+    {
+        return NRF_ERROR_NULL;
+    }
+
+    ble_gap_adv_data_t new_adv_data;
+    memset(&new_adv_data, 0, sizeof(new_adv_data));
+
+    if (p_advdata != NULL)
+    {
+        new_adv_data.adv_data.p_data =
+            (p_advertising->p_adv_data->adv_data.p_data != p_advertising->enc_advdata[0]) ?
+             p_advertising->enc_advdata[0] : p_advertising->enc_advdata[1];
+        new_adv_data.adv_data.len = adv_set_data_size_max_get(p_advertising);
+
+        ret_code_t ret = ble_advdata_encode(p_advdata,
+                                            new_adv_data.adv_data.p_data,
+                                            &new_adv_data.adv_data.len);
+        VERIFY_SUCCESS(ret);
+    }
+
+    if (p_srdata != NULL)
+    {
+        new_adv_data.scan_rsp_data.p_data =
+            (p_advertising->p_adv_data->scan_rsp_data.p_data != p_advertising->enc_scan_rsp_data[0]) ?
+             p_advertising->enc_scan_rsp_data[0] : p_advertising->enc_scan_rsp_data[1];
+        new_adv_data.scan_rsp_data.len = adv_set_data_size_max_get(p_advertising);
+
+        ret_code_t ret = ble_advdata_encode(p_srdata,
+                                            new_adv_data.scan_rsp_data.p_data,
+                                            &new_adv_data.scan_rsp_data.len);
+        VERIFY_SUCCESS(ret);
+    }
+
+    memcpy(&p_advertising->adv_data, &new_adv_data, sizeof(p_advertising->adv_data));
+    p_advertising->p_adv_data = &p_advertising->adv_data;
+
+    return sd_ble_gap_adv_set_configure(&p_advertising->adv_handle,
+                                        p_advertising->p_adv_data,
+                                        NULL);
 }
 
 

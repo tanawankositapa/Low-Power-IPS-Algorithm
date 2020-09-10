@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2018 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2018 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,13 +35,13 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include "sdk_common.h"
 #include "nrf_cli_libuarte.h"
 #include "nrf_libuarte_async.h"
 #include "nrf_assert.h"
-
+#include "nrf_atomic.h"
 #define NRF_LOG_MODULE_NAME cli_libuarte
 #if NRF_CLI_LIBUARTE_CONFIG_LOG_ENABLED
 #define NRF_LOG_LEVEL       NRF_CLI_LIBUARTE_CONFIG_LOG_LEVEL
@@ -54,9 +54,16 @@
 NRF_LOG_MODULE_REGISTER();
 
 static cli_libuarte_internal_t * mp_internal;
-static bool m_uart_busy;
+static nrf_atomic_flag_t m_uart_busy;
 
-static void uart_event_handler(nrf_libuarte_async_evt_t * p_event)
+NRF_LIBUARTE_ASYNC_DEFINE(libuarte,
+                          NRF_CLI_LIBUARTE_UARTE_INSTANCE,
+                          NRF_CLI_LIBUARTE_TIMER_INSTANCE,
+                          NRF_CLI_LIBUARTE_TIMEOUT_RTC_INSTANCE,
+                          NRF_CLI_LIBUARTE_TIMEOUT_TIMER_INSTANCE,
+                          3, 255);
+
+static void uart_event_handler(void * context, nrf_libuarte_async_evt_t * p_event)
 {
     cli_libuarte_internal_t * p_internal = mp_internal;
     ret_code_t err_code = NRF_SUCCESS;
@@ -81,7 +88,7 @@ static void uart_event_handler(nrf_libuarte_async_evt_t * p_event)
             {
                 NRF_LOG_WARNING("Data lost, no room in RX ringbuf");
             }
-            nrf_libuarte_async_rx_free(p_event->data.rxtx.p_data, p_event->data.rxtx.length);
+            nrf_libuarte_async_rx_free(&libuarte, p_event->data.rxtx.p_data, p_event->data.rxtx.length);
 
             if (p_event->data.rxtx.length)
             {
@@ -104,7 +111,7 @@ static void uart_event_handler(nrf_libuarte_async_evt_t * p_event)
             if (len)
             {
                 NRF_LOG_DEBUG("(evt) Started TX (%d).", len);
-                err_code = nrf_libuarte_async_tx(p_data, len);
+                err_code = nrf_libuarte_async_tx(&libuarte, p_data, len);
                 ASSERT(err_code == NRF_SUCCESS);
             }
             else
@@ -145,8 +152,9 @@ static ret_code_t cli_libuarte_init(nrf_cli_transport_t const * p_transport,
             .parity     = p_cli_libuarte_config->parity,
             .hwfc       = p_cli_libuarte_config->hwfc,
             .timeout_us = 100,
+            .int_prio   = APP_IRQ_PRIORITY_LOW
     };
-    ret_code_t err_code = nrf_libuarte_async_init(&uart_async_config, uart_event_handler);
+    ret_code_t err_code = nrf_libuarte_async_init(&libuarte, &uart_async_config, uart_event_handler, NULL);
     if (err_code == NRF_SUCCESS)
     {
         nrf_ringbuf_init(p_internal->p_rx_ringbuf);
@@ -158,7 +166,7 @@ static ret_code_t cli_libuarte_init(nrf_cli_transport_t const * p_transport,
 static ret_code_t cli_libuarte_uninit(nrf_cli_transport_t const * p_transport)
 {
     UNUSED_PARAMETER(p_transport);
-    nrf_libuarte_async_uninit();
+    nrf_libuarte_async_uninit(&libuarte);
     return NRF_SUCCESS;
 }
 
@@ -172,7 +180,7 @@ static ret_code_t cli_libuarte_enable(nrf_cli_transport_t const * p_transport,
     }
     else
     {
-        nrf_libuarte_async_enable(255);
+        nrf_libuarte_async_enable(&libuarte);
     }
     return NRF_SUCCESS;
 }
@@ -212,7 +220,7 @@ static ret_code_t cli_libuarte_write(nrf_cli_transport_t const * p_transport,
     {
         NRF_LOG_DEBUG("Requested write: %d, copied to ringbuf: %d.", length, *p_cnt);
 
-        if (m_uart_busy)
+        if (nrf_atomic_flag_set_fetch(&m_uart_busy))
         {
             return err_code;
         }
@@ -223,14 +231,11 @@ static ret_code_t cli_libuarte_write(nrf_cli_transport_t const * p_transport,
         {
             NRF_LOG_DEBUG("Started TX (%d).", len);
 
-            err_code = nrf_libuarte_async_tx(p_buf, len);
+            err_code = nrf_libuarte_async_tx(&libuarte, p_buf, len);
             if (p_instance->p_cb->blocking && (err_code == NRF_SUCCESS))
             {
                 (void)nrf_ringbuf_free(p_instance->p_tx_ringbuf, len);
-            }
-            else
-            {
-                m_uart_busy = true;
+                m_uart_busy = false;
             }
         }
     }

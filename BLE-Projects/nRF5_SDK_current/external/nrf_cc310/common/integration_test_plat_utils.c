@@ -43,12 +43,11 @@
 #include <pthread.h>
 #endif
 #include "ssi_pal_types.h"
-#include "ssi_regs.h"
 
 #include "integration_test_plat_defs.h"
 #include "crys_rnd.h"
 
-#include "nrf52840.h"
+#include "nrf.h"
 #include "SEGGER_RTT.h"
 
 /*Globals*/
@@ -85,9 +84,9 @@ SaSiError_t integration_tests_setup(void)
 
     INTEG_TEST_PRINT("==================== TEST START ====================\r\n");
 
-    NVIC_EnableIRQ(CRYPTOCELL_IRQn);
+    //NVIC_EnableIRQ(CRYPTOCELL_IRQn);
 
-    NRF_CRYPTOCELL->ENABLE = 1;
+    //NRF_CRYPTOCELL->ENABLE = 1;
 
     return ret;
 }

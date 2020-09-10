@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /* Attention!
  *  To maintain compliance with Nordic Semiconductor ASA's Bluetooth profile
@@ -67,6 +67,15 @@ static ble_dfu_buttonless_t             m_dfu;                      /**< Structu
 
 NRF_SDH_BLE_OBSERVER(m_dfus_obs, BLE_DFU_BLE_OBSERVER_PRIO, ble_dfu_buttonless_on_ble_evt, &m_dfu);
 
+
+/**@brief Function that is called if no event handler is provided.
+ */
+static void dummy_evt_handler(ble_dfu_buttonless_evt_type_t evt)
+{
+    NRF_LOG_DEBUG("Dummy event handler received event 0x%x", evt);
+}
+
+
 /**@brief Function for handling write events to the Buttonless Secure DFU Service Service Control Point characteristic.
  *
  * @param[in]   p_evt_write   Write event received from the BLE stack.
@@ -75,20 +84,22 @@ static void on_ctrlpt_write(ble_gatts_evt_write_t const * p_evt_write)
 {
     uint32_t      err_code;
 
-
     ble_gatts_rw_authorize_reply_params_t write_authorize_reply;
     memset(&write_authorize_reply, 0, sizeof(write_authorize_reply));
 
     write_authorize_reply.type   = BLE_GATTS_AUTHORIZE_TYPE_WRITE;
 
-    if (m_dfu.is_ctrlpt_indication_enabled)
+    uint8_t cccd_val[2];
+    ble_gatts_value_t value = {.p_value = cccd_val, .len = 2, .offset = 0};
+    err_code = sd_ble_gatts_value_get(m_dfu.conn_handle, m_dfu.control_point_char.cccd_handle, &value);
+    if (err_code == NRF_SUCCESS && ble_srv_is_indication_enabled(cccd_val))
     {
         write_authorize_reply.params.write.update      = 1;
         write_authorize_reply.params.write.gatt_status = BLE_GATT_STATUS_SUCCESS;
     }
     else
     {
-        write_authorize_reply.params.write.gatt_status = DFU_RSP_CCCD_CONFIG_IMPROPER;
+        write_authorize_reply.params.write.gatt_status = BLE_GATT_STATUS_ATTERR_CPS_CCCD_CONFIG_ERROR;
     }
 
     // Authorize the write request
@@ -152,36 +163,12 @@ static void on_connect(ble_evt_t const * p_ble_evt)
  */
 static void on_disconnect(ble_evt_t const * p_ble_evt)
 {
-    if (m_dfu.conn_handle != p_ble_evt->evt.gatts_evt.conn_handle)
+    if (m_dfu.conn_handle != p_ble_evt->evt.gap_evt.conn_handle)
     {
         return;
     }
 
     m_dfu.conn_handle = BLE_CONN_HANDLE_INVALID;
-}
-
-
-/**@brief Write event handler.
- *
- * @param[in]   p_ble_evt Event received from the BLE stack.
- */
-static void on_write(ble_evt_t const * p_ble_evt)
-{
-    const ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
-
-    if (p_evt_write->handle != m_dfu.control_point_char.cccd_handle)
-    {
-        return;
-    }
-
-    if (p_evt_write->len == BLE_CCCD_VALUE_LEN)
-    {
-        // CCCD written, update indications state
-        m_dfu.is_ctrlpt_indication_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-
-         NRF_LOG_INFO("Received indication state %d",
-                      m_dfu.is_ctrlpt_indication_enabled);
-    }
 }
 
 
@@ -229,10 +216,6 @@ void ble_dfu_buttonless_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context
             on_rw_authorize_req(p_ble_evt);
             break;
 
-        case BLE_GATTS_EVT_WRITE:
-            on_write(p_ble_evt);
-            break;
-
         case BLE_GATTS_EVT_HVC:
             on_hvc(p_ble_evt);
             break;
@@ -246,26 +229,25 @@ void ble_dfu_buttonless_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context
 
 uint32_t ble_dfu_buttonless_resp_send(ble_dfu_buttonless_op_code_t op_code, ble_dfu_buttonless_rsp_code_t rsp_code)
 {
-    // Send notification
+    // Send indication
     uint32_t                err_code;
-    const uint16_t          len = 3;
+    const uint16_t          len = MAX_CTRL_POINT_RESP_PARAM_LEN;
     uint16_t                hvx_len;
     uint8_t                 hvx_data[MAX_CTRL_POINT_RESP_PARAM_LEN];
     ble_gatts_hvx_params_t  hvx_params;
 
     memset(&hvx_params, 0, sizeof(hvx_params));
 
-    hvx_len = len;
+    hvx_len     = len;
     hvx_data[0] = DFU_OP_RESPONSE_CODE;
     hvx_data[1] = (uint8_t)op_code;
     hvx_data[2] = (uint8_t)rsp_code;
 
-    hvx_params.handle   = m_dfu.control_point_char.value_handle;
-    hvx_params.type     = BLE_GATT_HVX_INDICATION;
-    hvx_params.offset   = 0;
-    hvx_params.p_len    = &hvx_len;
-    hvx_params.p_data   = hvx_data;
-
+    hvx_params.handle = m_dfu.control_point_char.value_handle;
+    hvx_params.type   = BLE_GATT_HVX_INDICATION;
+    hvx_params.offset = 0;
+    hvx_params.p_len  = &hvx_len;
+    hvx_params.p_data = hvx_data;
 
     err_code = sd_ble_gatts_hvx(m_dfu.conn_handle, &hvx_params);
     if ((err_code == NRF_SUCCESS) && (hvx_len != len))
@@ -311,11 +293,15 @@ uint32_t ble_dfu_buttonless_init(const ble_dfu_buttonless_init_t * p_dfu_init)
     m_dfu.conn_handle                  = BLE_CONN_HANDLE_INVALID;
     m_dfu.evt_handler                  = p_dfu_init->evt_handler;
     m_dfu.is_waiting_for_reset         = false;
-    m_dfu.is_ctrlpt_indication_enabled = false;
+
+    if (m_dfu.evt_handler == NULL)
+    {
+        m_dfu.evt_handler = dummy_evt_handler;
+    }
 
     err_code = ble_dfu_buttonless_backend_init(&m_dfu);
     VERIFY_SUCCESS(err_code);
-    
+
     BLE_UUID_BLE_ASSIGN(service_uuid, BLE_DFU_SERVICE_UUID);
 
     // Add the DFU service declaration.

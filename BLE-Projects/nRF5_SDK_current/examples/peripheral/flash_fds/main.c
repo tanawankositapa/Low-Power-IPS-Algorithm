@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include <stdint.h>
@@ -61,28 +61,6 @@
 
 /* A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_CONN_CFG_TAG    1
-
-
-/* Array to map FDS return values to strings. */
-char const * fds_err_str[] =
-{
-    "FDS_SUCCESS",
-    "FDS_ERR_OPERATION_TIMEOUT",
-    "FDS_ERR_NOT_INITIALIZED",
-    "FDS_ERR_UNALIGNED_ADDR",
-    "FDS_ERR_INVALID_ARG",
-    "FDS_ERR_NULL_ARG",
-    "FDS_ERR_NO_OPEN_RECORDS",
-    "FDS_ERR_NO_SPACE_IN_FLASH",
-    "FDS_ERR_NO_SPACE_IN_QUEUES",
-    "FDS_ERR_RECORD_TOO_LARGE",
-    "FDS_ERR_NOT_FOUND",
-    "FDS_ERR_NO_PAGES",
-    "FDS_ERR_USER_LIMIT_REACHED",
-    "FDS_ERR_CRC_CHECK_FAILED",
-    "FDS_ERR_BUSY",
-    "FDS_ERR_INTERNAL",
-};
 
 /* Array to map FDS events to strings. */
 static char const * fds_evt_str[] =
@@ -125,16 +103,50 @@ static struct
 static bool volatile m_fds_initialized;
 
 
+const char *fds_err_str(ret_code_t ret)
+{
+    /* Array to map FDS return values to strings. */
+    static char const * err_str[] =
+    {
+        "FDS_ERR_OPERATION_TIMEOUT",
+        "FDS_ERR_NOT_INITIALIZED",
+        "FDS_ERR_UNALIGNED_ADDR",
+        "FDS_ERR_INVALID_ARG",
+        "FDS_ERR_NULL_ARG",
+        "FDS_ERR_NO_OPEN_RECORDS",
+        "FDS_ERR_NO_SPACE_IN_FLASH",
+        "FDS_ERR_NO_SPACE_IN_QUEUES",
+        "FDS_ERR_RECORD_TOO_LARGE",
+        "FDS_ERR_NOT_FOUND",
+        "FDS_ERR_NO_PAGES",
+        "FDS_ERR_USER_LIMIT_REACHED",
+        "FDS_ERR_CRC_CHECK_FAILED",
+        "FDS_ERR_BUSY",
+        "FDS_ERR_INTERNAL",
+    };
+
+    return err_str[ret - NRF_ERROR_FDS_ERR_BASE];
+}
+
+
 static void fds_evt_handler(fds_evt_t const * p_evt)
 {
-    NRF_LOG_GREEN("Event: %s received (%s)",
-                  fds_evt_str[p_evt->id],
-                  fds_err_str[p_evt->result]);
+    if (p_evt->result == NRF_SUCCESS)
+    {
+        NRF_LOG_GREEN("Event: %s received (NRF_SUCCESS)",
+                      fds_evt_str[p_evt->id]);
+    }
+    else
+    {
+        NRF_LOG_GREEN("Event: %s received (%s)",
+                      fds_evt_str[p_evt->id],
+                      fds_err_str(p_evt->result));
+    }
 
     switch (p_evt->id)
     {
         case FDS_EVT_INIT:
-            if (p_evt->result == FDS_SUCCESS)
+            if (p_evt->result == NRF_SUCCESS)
             {
                 m_fds_initialized = true;
             }
@@ -142,7 +154,7 @@ static void fds_evt_handler(fds_evt_t const * p_evt)
 
         case FDS_EVT_WRITE:
         {
-            if (p_evt->result == FDS_SUCCESS)
+            if (p_evt->result == NRF_SUCCESS)
             {
                 NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->write.record_id);
                 NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->write.file_id);
@@ -152,7 +164,7 @@ static void fds_evt_handler(fds_evt_t const * p_evt)
 
         case FDS_EVT_DEL_RECORD:
         {
-            if (p_evt->result == FDS_SUCCESS)
+            if (p_evt->result == NRF_SUCCESS)
             {
                 NRF_LOG_INFO("Record ID:\t0x%04x",  p_evt->del.record_id);
                 NRF_LOG_INFO("File ID:\t0x%04x",    p_evt->del.file_id);
@@ -315,7 +327,7 @@ int main(void)
 
     rc = fds_record_find(CONFIG_FILE, CONFIG_REC_KEY, &desc, &tok);
 
-    if (rc == FDS_SUCCESS)
+    if (rc == NRF_SUCCESS)
     {
         /* A config file is in flash. Let's update it. */
         fds_flash_record_t config = {0};
@@ -338,7 +350,14 @@ int main(void)
 
         /* Write the updated record to flash. */
         rc = fds_record_update(&desc, &m_dummy_record);
-        APP_ERROR_CHECK(rc);
+        if ((rc != NRF_SUCCESS) && (rc == FDS_ERR_NO_SPACE_IN_FLASH))
+        {
+            NRF_LOG_INFO("No space in flash, delete some records to update the config file.");
+        }
+        else
+        {
+            APP_ERROR_CHECK(rc);
+        }
     }
     else
     {
@@ -346,7 +365,14 @@ int main(void)
         NRF_LOG_INFO("Writing config file...");
 
         rc = fds_record_write(&desc, &m_dummy_record);
-        APP_ERROR_CHECK(rc);
+        if ((rc != NRF_SUCCESS) && (rc == FDS_ERR_NO_SPACE_IN_FLASH))
+        {
+            NRF_LOG_INFO("No space in flash, delete some records to update the config file.");
+        }
+        else
+        {
+            APP_ERROR_CHECK(rc);
+        }
     }
 
     cli_start();

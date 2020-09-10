@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2015 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2015 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /**
  * @file
@@ -204,6 +204,22 @@ bool ble_conn_state_encrypted(uint16_t conn_handle);
  *                conn_handle is invalid.
  */
 bool ble_conn_state_mitm_protected(uint16_t conn_handle);
+
+
+/**@brief Function for querying whether a connection was bonded using LE Secure Connections (LESC).
+ *
+ * The connection must currently be encrypted.
+ *
+ * @note This function will report false if bonded, and the LESC bonding was unauthenticated
+ *       ("Just Works") and happened in a previous connection. To detect such cases as well, check
+ *       the stored bonding key, e.g. in Peer Manager, which has a LESC flag associated with it.
+ *
+ * @param[in]  conn_handle  Handle of connection to get the LESC state for.
+ *
+ * @retval true   If the connection was bonded using LESC.
+ * @retval false  If the connection has not been bonded using LESC, or conn_handle is invalid.
+ */
+bool ble_conn_state_lesc(uint16_t conn_handle);
 
 
 /**@brief Function for querying the total number of connections.

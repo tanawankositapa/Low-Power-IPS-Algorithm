@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2018 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2018 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sdk_common.h"
@@ -406,8 +406,6 @@ static ret_code_t backend_cc310_update(void * const p_context,
             data_size  = 0;
         }
 
-        cc310_backend_enable();
-
         if (p_ctx->any.backend.operation == NRF_CRYPTO_MAC_CALCULATE)
         {
             result  = SaSi_AesBlock(&p_ctx->any.context,
@@ -422,8 +420,6 @@ static ret_code_t backend_cc310_update(void * const p_context,
                                     size,
                                     p_data_out + offset);
         }
-
-        cc310_backend_disable();
 
         offset += size;
         ret_val = result_get(result);
@@ -479,14 +475,10 @@ static ret_code_t backend_cc310_finalize(void * const p_context,
         size       = CC310_MAX_LENGTH_DMA_AES_OPERATIONS;
         data_size -= CC310_MAX_LENGTH_DMA_AES_OPERATIONS;
 
-        cc310_backend_enable();
-
         result  = SaSi_AesBlock(&p_ctx->any.context,
                                 p_data_in  + offset,
                                 size,
                                 p_data_out + offset);
-
-        cc310_backend_disable();
 
         offset += size;
         ret_val = result_get(result);
@@ -500,16 +492,12 @@ static ret_code_t backend_cc310_finalize(void * const p_context,
     /* Calculate space in the output buffer */
     *p_data_out_size -= offset;
 
-    cc310_backend_enable();
-
     result = SaSi_AesFinish(&p_ctx->any.context,
                             data_size,
                             p_data_in  + offset,
                             data_size,
                             p_data_out + offset,
                             p_data_out_size);
-
-    cc310_backend_disable();
 
     ret_val = result_get(result);
 
@@ -578,14 +566,10 @@ static ret_code_t backend_cc310_mac_finalize(void * const p_context,
         size       = CC310_MAX_LENGTH_DMA_AES_OPERATIONS;
         data_size -= CC310_MAX_LENGTH_DMA_AES_OPERATIONS;
 
-        cc310_backend_enable();
-
         result  = SaSi_AesBlock(&p_ctx->any.context,
                                 p_data_in  + offset,
                                 size,
                                 p_data_out);
-
-        cc310_backend_disable();
 
         offset += size;
         ret_val = result_get(result);
@@ -596,16 +580,12 @@ static ret_code_t backend_cc310_mac_finalize(void * const p_context,
         }
     }
 
-    cc310_backend_enable();
-
     result = SaSi_AesFinish(&p_ctx->any.context,
                             data_size,
                             p_data_in  + offset,
                             data_size,
                             p_data_out,
                             p_data_out_size);
-
-    cc310_backend_disable();
 
     ret_val = result_get(result);
 

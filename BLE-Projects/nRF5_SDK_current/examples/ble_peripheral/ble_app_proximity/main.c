@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2014 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2014 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /** @file
  *
@@ -81,6 +81,7 @@
 #include "bsp_btn_ble.h"
 #include "ble_db_discovery.h"
 #include "peer_manager.h"
+#include "peer_manager_handler.h"
 #include "fds.h"
 #include "ble_conn_state.h"
 #include "nrf_ble_gatt.h"
@@ -152,6 +153,9 @@ NRF_BLE_GATT_DEF(m_gatt);                               /**< GATT module instanc
 NRF_BLE_QWR_DEF(m_qwr);                                 /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                     /**< Advertising module instance. */
 BLE_DB_DISCOVERY_DEF(m_ble_db_discovery);               /**< DB discovery module instance. */
+NRF_BLE_GQ_DEF(m_ble_gatt_queue,                        /**< BLE GATT Queue instance. */
+               NRF_SDH_BLE_PERIPHERAL_LINK_COUNT,
+               NRF_BLE_GQ_QUEUE_SIZE);
 
 static volatile bool m_is_high_alert_signalled;         /**< Variable to indicate whether a high alert has been signalled to the peer. */
 static volatile bool m_is_ias_present = false;          /**< Variable to indicate whether the immediate alert service has been discovered at the connected peer. */
@@ -211,91 +215,15 @@ static void service_error_handler(uint32_t nrf_error)
  */
 static void pm_evt_handler(pm_evt_t const * p_evt)
 {
-    ret_code_t err_code;
+    pm_handler_on_pm_evt(p_evt);
+    pm_handler_flash_clean(p_evt);
 
     switch (p_evt->evt_id)
     {
-        case PM_EVT_BONDED_PEER_CONNECTED:
-        {
-            NRF_LOG_INFO("Connected to a previously bonded device.");
-        } break;
-
-        case PM_EVT_CONN_SEC_SUCCEEDED:
-        {
-            NRF_LOG_INFO("Connection secured: role: %d, conn_handle: 0x%x, procedure: %d.",
-                         ble_conn_state_role(p_evt->conn_handle),
-                         p_evt->conn_handle,
-                         p_evt->params.conn_sec_succeeded.procedure);
-        } break;
-
-        case PM_EVT_CONN_SEC_FAILED:
-        {
-            /* Often, when securing fails, it shouldn't be restarted, for security reasons.
-             * Other times, it can be restarted directly.
-             * Sometimes it can be restarted, but only after changing some Security Parameters.
-             * Sometimes, it cannot be restarted until the link is disconnected and reconnected.
-             * Sometimes it is impossible, to secure the link, or the peer device does not support it.
-             * How to handle this error is highly application dependent. */
-        } break;
-
-        case PM_EVT_CONN_SEC_CONFIG_REQ:
-        {
-            // Reject pairing request from an already bonded peer.
-            pm_conn_sec_config_t conn_sec_config = {.allow_repairing = false};
-            pm_conn_sec_config_reply(p_evt->conn_handle, &conn_sec_config);
-        } break;
-
-        case PM_EVT_STORAGE_FULL:
-        {
-            // Run garbage collection on the flash.
-            err_code = fds_gc();
-            if (err_code == FDS_ERR_NO_SPACE_IN_QUEUES)
-            {
-                // Retry.
-            }
-            else
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-        } break;
-
         case PM_EVT_PEERS_DELETE_SUCCEEDED:
-        {
             advertising_start(false);
-        } break;
+            break;
 
-        case PM_EVT_PEER_DATA_UPDATE_FAILED:
-        {
-            // Assert.
-            APP_ERROR_CHECK(p_evt->params.peer_data_update_failed.error);
-        } break;
-
-        case PM_EVT_PEER_DELETE_FAILED:
-        {
-            // Assert.
-            APP_ERROR_CHECK(p_evt->params.peer_delete_failed.error);
-        } break;
-
-        case PM_EVT_PEERS_DELETE_FAILED:
-        {
-            // Assert.
-            APP_ERROR_CHECK(p_evt->params.peers_delete_failed_evt.error);
-        } break;
-
-        case PM_EVT_ERROR_UNEXPECTED:
-        {
-            // Assert.
-            APP_ERROR_CHECK(p_evt->params.error_unexpected.error);
-        } break;
-
-        case PM_EVT_CONN_SEC_START:
-        case PM_EVT_PEER_DATA_UPDATE_SUCCEEDED:
-        case PM_EVT_PEER_DELETE_SUCCEEDED:
-        case PM_EVT_LOCAL_DB_CACHE_APPLIED:
-        case PM_EVT_LOCAL_DB_CACHE_APPLY_FAILED:
-            // This can happen when the local DB has changed.
-        case PM_EVT_SERVICE_CHANGED_IND_SENT:
-        case PM_EVT_SERVICE_CHANGED_IND_CONFIRMED:
         default:
             break;
     }
@@ -569,8 +497,7 @@ static void tps_init(void)
     memset(&tps_init_obj, 0, sizeof(tps_init_obj));
     tps_init_obj.initial_tx_power_level = TX_POWER_LEVEL;
 
-    BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&tps_init_obj.tps_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&tps_init_obj.tps_attr_md.write_perm);
+    tps_init_obj.tpl_rd_sec = SEC_JUST_WORKS;
 
     err_code = ble_tps_init(&m_tps, &tps_init_obj);
     APP_ERROR_CHECK(err_code);
@@ -585,7 +512,9 @@ static void ias_init(void)
     ble_ias_init_t ias_init_obj;
 
     memset(&ias_init_obj, 0, sizeof(ias_init_obj));
-    ias_init_obj.evt_handler = on_ias_evt;
+    ias_init_obj.evt_handler  = on_ias_evt;
+
+    ias_init_obj.alert_wr_sec = SEC_JUST_WORKS;
 
     err_code = ble_ias_init(&m_ias, &ias_init_obj);
     APP_ERROR_CHECK(err_code);
@@ -606,8 +535,8 @@ static void lls_init(void)
     lls_init_obj.error_handler       = service_error_handler;
     lls_init_obj.initial_alert_level = INITIAL_LLS_ALERT_LEVEL;
 
-    BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&lls_init_obj.lls_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&lls_init_obj.lls_attr_md.write_perm);
+    lls_init_obj.alert_level_rd_sec = SEC_JUST_WORKS;
+    lls_init_obj.alert_level_wr_sec = SEC_JUST_WORKS;
 
     err_code = ble_lls_init(&m_lls, &lls_init_obj);
     APP_ERROR_CHECK(err_code);
@@ -628,11 +557,9 @@ static void bas_init(void)
     bas_init_obj.p_report_ref         = NULL;
     bas_init_obj.initial_batt_level   = 100;
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init_obj.battery_level_char_attr_md.cccd_write_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init_obj.battery_level_char_attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&bas_init_obj.battery_level_char_attr_md.write_perm);
-
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&bas_init_obj.battery_level_report_read_perm);
+    bas_init_obj.bl_rd_sec        = SEC_OPEN;
+    bas_init_obj.bl_cccd_wr_sec   = SEC_OPEN;
+    bas_init_obj.bl_report_rd_sec = SEC_OPEN;
 
     err_code = ble_bas_init(&m_bas, &bas_init_obj);
     APP_ERROR_CHECK(err_code);
@@ -654,6 +581,7 @@ static void ias_client_init(void)
 
     ias_c_init_obj.evt_handler   = on_ias_c_evt;
     ias_c_init_obj.error_handler = service_error_handler;
+    ias_c_init_obj.p_gatt_queue  = &m_ble_gatt_queue;
 
     err_code = ble_ias_c_init(&m_ias_c, &ias_c_init_obj);
     APP_ERROR_CHECK(err_code);
@@ -677,7 +605,14 @@ static void services_init(void)
  */
 static void db_discovery_init(void)
 {
-    ret_code_t err_code = ble_db_discovery_init(db_disc_handler);
+    ble_db_discovery_init_t db_init;
+
+    memset(&db_init, 0, sizeof(ble_db_discovery_init_t));
+
+    db_init.evt_handler  = db_disc_handler;
+    db_init.p_gatt_queue = &m_ble_gatt_queue;
+
+    ret_code_t err_code = ble_db_discovery_init(&db_init);
     APP_ERROR_CHECK(err_code);
 }
 

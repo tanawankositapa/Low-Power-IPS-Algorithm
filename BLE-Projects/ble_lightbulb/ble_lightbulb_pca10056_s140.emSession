@@ -3,6 +3,7 @@
  <Bookmarks/>
  <Breakpoints groups="Breakpoints" active_group="Breakpoints">
   <BreakpointListItem trigger="" line="59" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="2" filename="Services/led_service.c" useHWbreakpoint="false"/>
+  <Exceptions set="MemManage;UsageFault_Coprocessor;UsageFault_CheckingError;UsageFault_StateError;BusFault;ExceptionEntryReturnFault;HardFault"/>
  </Breakpoints>
  <ExecutionProfileWindow/>
  <FrameBufferWindow>
@@ -28,8 +29,13 @@
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;Board Definition"/>
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;Board Support"/>
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;None"/>
+  <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_BLE"/>
+  <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_Drivers"/>
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_Libraries"/>
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_Log"/>
+  <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_Segger_RTT"/>
+  <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;nRF_SoftDevice"/>
+  <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;Segger Startup Files"/>
   <ProjectSessionItem path="ble_lightbulb_pca10056_s140;ble_lightbulb;Services"/>
  </Project>
  <Register1>
@@ -63,19 +69,21 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="672" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="main.c" selected="0" top="60" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="691" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="main.c" selected="0" top="46" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="Services/led_service.c" selected="0" top="30" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="98" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/util/app_error_weak.c" selected="0" top="78" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7344" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="sdk_config.h" selected="0" top="7328" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="212" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/softdevice/s140/headers/ble.h" selected="0" top="193" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="419" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/softdevice/s140/headers/ble_gatts.h" selected="0" top="402" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1916" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/softdevice/s140/headers/ble_gap.h" selected="0" top="1918" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="Battery Level/battery_voltage.c" selected="0" top="60" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="Battery Level/battery_voltage.h" selected="0" top="3" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="3" y="37" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/experimental_log/nrf_log_backend_interface.h" selected="0" top="32" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="51" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/experimental_log/nrf_log_backend_serial.c" selected="0" top="35" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="40" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/experimental_memobj/nrf_memobj.c" selected="0" top="30" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="58" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/balloc/nrf_balloc.h" selected="1" top="36" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="81" useTextEdit="1" openedFrom="D:/BLE Projects/ble_lightbulb/main.c" useBinaryEdit="0" left="0" path="Battery Level/battery_voltage.c" selected="0" top="75" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="Battery Level/battery_voltage.h" selected="0" top="9" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="58" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/balloc/nrf_balloc.h" selected="0" top="36" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/ble/ble_advertising/ble_advertising.c" selected="0" top="645" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="158" useTextEdit="1" openedFrom="D:/BLE Projects/ble_lightbulb/Battery Level/battery_voltage.c" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/components/libraries/util/sdk_errors.h" selected="0" top="134" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="19" y="42" useTextEdit="1" openedFrom="" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/modules/nrfx/drivers/src/nrfx_saadc.c" selected="1" top="30" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="84" useTextEdit="1" openedFrom="D:/BLE Projects/ble_lightbulb/Battery Level/battery_voltage.c" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/modules/nrfx/hal/nrf_saadc.h" selected="0" top="67" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="141" useTextEdit="1" openedFrom="D:/BLE Projects/ble_lightbulb/Battery Level/battery_voltage.c" useBinaryEdit="0" left="0" path="../nRF5_SDK_current/modules/nrfx/drivers/include/nrfx_saadc.h" selected="0" top="135" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="ble_lightbulb" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="D:/BLE Projects/nRF5_SDK_Current/components/libraries/experimental_memobj" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="ble_lightbulb" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="D:/BLE Projects/nRF5_SDK_Current/components/libraries/experimental_memobj" debugSearchPath="" autoConnectCapabilities="3199"/>
 </session>

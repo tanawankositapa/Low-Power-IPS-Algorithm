@@ -13,6 +13,7 @@ SRC_FILES += \
 # Include folders common to all targets
 INC_FOLDERS += \
   $(SDK_ROOT)/components/toolchain/cmsis/include \
+  $(PROJ_DIR)/micro-ecc \
 
 # Libraries common to all targets
 LIB_FILES += \
@@ -40,7 +41,6 @@ CFLAGS += -fno-builtin -fshort-enums -fshort-wchar -Wno-unused-function
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
-
 # Assembler flags common to all targets
 ASMFLAGS += -g2
 ASMFLAGS += -mcpu=cortex-m4

@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2010 - 2018, Nordic Semiconductor ASA
+Copyright (c) 2010 - 2020, Nordic Semiconductor ASA
 
 All rights reserved.
 
@@ -43,12 +43,22 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _NRF52832_PERIPHERALS_H
 
 
+/* Clock Peripheral */
+#define CLOCK_PRESENT
+#define CLOCK_COUNT 1
+
 /* Power Peripheral */
 #define POWER_PRESENT
 #define POWER_COUNT 1
 
 #define POWER_FEATURE_RAM_REGISTERS_PRESENT
 #define POWER_FEATURE_RAM_REGISTERS_COUNT       8
+
+/* Non-Volatile Memory Controller */
+#define NVMC_PRESENT
+#define NVMC_COUNT 1
+
+#define NVMC_FEATURE_CACHE_PRESENT
 
 /* Floating Point Unit */
 #define FPU_PRESENT
@@ -71,6 +81,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define GPIO_COUNT 1
 
 #define P0_PIN_NUM 32
+
+#define P0_FEATURE_PINS_PRESENT 0xFFFFFFFFUL
 
 /* MPU and BPROT */
 #define BPROT_PRESENT

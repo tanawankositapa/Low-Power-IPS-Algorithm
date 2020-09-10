@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2017 - 2018, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2017 - 2020, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #ifndef NRF_CLI_H__
 #define NRF_CLI_H__
@@ -47,6 +47,7 @@
 #include "nrf_queue.h"
 #include "nrf_log_ctrl.h"
 #include "app_util_platform.h"
+#include "nrf_memobj.h"
 
 #if NRF_MODULE_ENABLED(NRF_CLI_USES_TASK_MANAGER)
 #include "task_manager.h"
@@ -149,7 +150,7 @@ struct nrf_cli_static_entry
     NRF_SECTION_ITEM_REGISTER(cli_command,                              \
                               nrf_cli_cmd_entry_t const CONCAT_3(nrf_cli_, p_syntax, _const)) = { \
                                 .is_dynamic = false,                    \
-                                .u.p_static = &CONCAT_3(nrf_cli_, p_syntax, _raw) \
+                                .u = {.p_static = &CONCAT_3(nrf_cli_, p_syntax, _raw)} \
     }; \
     NRF_SECTION_ITEM_REGISTER(cli_sorted_cmd_ptrs, char const * CONCAT_2(p_syntax, _str_ptr))
 
@@ -163,7 +164,7 @@ struct nrf_cli_static_entry
     static nrf_cli_static_entry_t const CONCAT_2(name, _raw)[]; \
     static nrf_cli_cmd_entry_t const name = {                   \
         .is_dynamic = false,                                    \
-        .u.p_static = CONCAT_2(name, _raw)                      \
+        .u = {.p_static = CONCAT_2(name, _raw) }                \
     };                                                          \
     static nrf_cli_static_entry_t const CONCAT_2(name, _raw)[] = /*lint -restore*/
 
@@ -183,8 +184,28 @@ struct nrf_cli_static_entry
     /*lint -save -e19*/                         \
     static nrf_cli_cmd_entry_t const name = {   \
         .is_dynamic  = true,                    \
-        .u.p_dynamic_get = p_get                \
+        .u = { .p_dynamic_get = p_get }         \
 }; /*lint -restore*/
+
+/** @brief Macro for creating subcommands when C++ compiler is used.
+ *
+ * Example usage:
+ * @code
+ * NRF_CLI_CPP_CREATE_STATIC_SUBCMD_SET(cmd_syntax,
+ * NRF_CLI_CMD(abc, ...),
+ * NRF_CLI_CMD(def, ...),
+ * NRF_CLI_SUBCMD_SET_END
+ * );
+ * @endcode
+ */
+#define NRF_CLI_CPP_CREATE_STATIC_SUBCMD_SET(name, ...)             \
+    static nrf_cli_static_entry_t const CONCAT_2(name, _raw)[] = {  \
+        __VA_ARGS__                                                 \
+    };                                                              \
+    static nrf_cli_cmd_entry_t const name = {                       \
+        .is_dynamic  = false,                                       \
+        .u = { .p_static = CONCAT_2(name, _raw) }                   \
+    }
 
 /**
  * @brief Initializes a CLI command (@ref nrf_cli_static_entry).
@@ -196,8 +217,8 @@ struct nrf_cli_static_entry
  */
 #define NRF_CLI_CMD(_p_syntax, _p_subcmd, _p_help, _p_handler) { \
     .p_syntax = (const char *)  STRINGIFY(_p_syntax), \
-    .p_subcmd =                 _p_subcmd,  \
     .p_help  = (const char *)   _p_help,    \
+    .p_subcmd =                 _p_subcmd,  \
     .handler =                  _p_handler  \
 }
 
@@ -208,7 +229,8 @@ typedef enum
 {
     NRF_CLI_RECEIVE_DEFAULT,
     NRF_CLI_RECEIVE_ESC,
-    NRF_CLI_RECEIVE_ESC_SEQ
+    NRF_CLI_RECEIVE_ESC_SEQ,
+    NRF_CLI_RECEIVE_TILDE_EXP
 } nrf_cli_receive_t;
 
 
@@ -344,6 +366,7 @@ typedef struct
     uint32_t echo           : 1; //!< Enables or disables CLI echo.
     uint32_t processing     : 1; //!< CLI is executing process function.
     uint32_t tx_rdy         : 1;
+    uint32_t last_nl        : 8; //!< The last received newline character.
 } nrf_cli_flag_t;
 STATIC_ASSERT(sizeof(nrf_cli_flag_t) == sizeof(uint32_t));
 
@@ -364,7 +387,7 @@ typedef struct
     nrf_cli_state_t   state;            //!< Internal module state.
     nrf_cli_receive_t receive_state;    //!< Escape sequence indicator.
 
-    nrf_cli_static_entry_t const * p_current_stcmd; //!< Currently executed command.
+    nrf_cli_static_entry_t active_cmd;      //!< Currently executed command
 
     nrf_cli_vt100_ctx_t vt100_ctx;          //!< VT100 color and cursor position, terminal width.
 
@@ -399,20 +422,19 @@ extern const nrf_log_backend_api_t nrf_log_backend_cli_api;
 
 typedef struct
 {
-    nrf_log_backend_t   backend;
     nrf_queue_t const * p_queue;
     void *              p_context;
     nrf_cli_t const *   p_cli;
 } nrf_cli_log_backend_t;
 
 #if NRF_CLI_LOG_BACKEND && NRF_MODULE_ENABLED(NRF_LOG)
-#define NRF_LOG_BACKEND_CLI_DEF(_name_, _queue_size_)                                       \
-        NRF_QUEUE_DEF(nrf_log_entry_t,                                                      \
-                      CONCAT_2(_name_, _queue),_queue_size_, NRF_QUEUE_MODE_NO_OVERFLOW);   \
-        static nrf_cli_log_backend_t _name_ = {                                             \
-                .backend = {.p_api = &nrf_log_backend_cli_api},                             \
-                .p_queue = &CONCAT_2(_name_, _queue),                                       \
-        }
+#define NRF_LOG_BACKEND_CLI_DEF(_name_, _queue_size_)                                          \
+        NRF_QUEUE_DEF(nrf_log_entry_t,                                                         \
+                      CONCAT_2(_name_, _queue),_queue_size_, NRF_QUEUE_MODE_NO_OVERFLOW);      \
+        static nrf_cli_log_backend_t CONCAT_2(cli_log_backend,_name_) = {                      \
+                .p_queue = &CONCAT_2(_name_, _queue),                                          \
+        };                                                                                     \
+        NRF_LOG_BACKEND_DEF(_name_, nrf_log_backend_cli_api, &CONCAT_2(cli_log_backend,_name_))
 
 #define NRF_CLI_BACKEND_PTR(_name_) &CONCAT_2(_name_, _log_backend)
 #else
@@ -447,10 +469,9 @@ struct nrf_cli
 
     nrf_cli_transport_t const * p_iface;        //!< Transport interface.
     nrf_cli_ctx_t *             p_ctx;          //!< Internal context.
-    nrf_cli_log_backend_t *     p_log_backend;  //!< Logger backend.
+    nrf_log_backend_t const *   p_log_backend;  //!< Logger backend.
     nrf_fprintf_ctx_t *         p_fprintf_ctx;  //!< fprintf context.
     nrf_memobj_pool_t const *   p_cmd_hist_mempool; //!< Memory reserved for commands history.
-    char const newline_char;   //!< New line character, only allowed values: \\n and \\r.
 };
 
 /**
@@ -459,7 +480,7 @@ struct nrf_cli
  * @param[in] name              Instance name.
  * @param[in] cli_prefix        CLI prefix string.
  * @param[in] p_transport_iface Pointer to the transport interface.
- * @param[in] newline_ch        New line character - only allowed values are '\\n' or '\\r'.
+ * @param[in] newline_ch        Deprecated parameter, not used any more. Any uint8_t value can be used.
  * @param[in] log_queue_size    Logger processing queue size.
  */
 #define NRF_CLI_DEF(name, cli_prefix, p_transport_iface, newline_ch, log_queue_size)    \
@@ -481,7 +502,6 @@ struct nrf_cli
             .p_log_backend = NRF_CLI_BACKEND_PTR(name),                         \
             .p_fprintf_ctx = &CONCAT_2(name, _fprintf_ctx),                     \
             .p_cmd_hist_mempool = NRF_CLI_MEMOBJ_PTR(name),                     \
-            .newline_char = newline_ch                                          \
         } /*lint -restore*/
 
 /**
@@ -555,6 +575,54 @@ void nrf_cli_fprintf(nrf_cli_t const *      p_cli,
                      nrf_cli_vt100_color_t  color,
                      char const *           p_fmt,
                                             ...);
+
+/**
+ * @brief Print an info message to the CLI.
+ *
+ * See @ref nrf_cli_fprintf.
+ *
+ * @param[in] _p_cli    Pointer to the CLI instance.
+ * @param[in] _ft       Format string.
+ * @param[in] ...       List of parameters to print.
+ */
+#define nrf_cli_info(_p_cli, _ft, ...) \
+        nrf_cli_fprintf(_p_cli, NRF_CLI_INFO, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print a normal message to the CLI.
+ *
+ * See @ref nrf_cli_fprintf.
+ *
+ * @param[in] _p_cli    Pointer to the CLI instance.
+ * @param[in] _ft       Format string.
+ * @param[in] ...       List of parameters to print.
+ */
+#define nrf_cli_print(_p_cli, _ft, ...) \
+        nrf_cli_fprintf(_p_cli, NRF_CLI_DEFAULT, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print a warning message to the CLI.
+ *
+ * See @ref nrf_cli_fprintf.
+ *
+ * @param[in] _p_cli    Pointer to the CLI instance.
+ * @param[in] _ft       Format string.
+ * @param[in] ...       List of parameters to print.
+ */
+#define nrf_cli_warn(_p_cli, _ft, ...) \
+        nrf_cli_fprintf(_p_cli, NRF_CLI_WARNING, _ft "\n", ##__VA_ARGS__)
+
+/**
+ * @brief Print an error message to the CLI.
+ *
+ * See @ref nrf_cli_fprintf.
+ *
+ * @param[in] _p_cli    Pointer to the CLI instance.
+ * @param[in] _ft       Format string.
+ * @param[in] ...       List of parameters to print.
+ */
+#define nrf_cli_error(_p_cli, _ft, ...) \
+        nrf_cli_fprintf(_p_cli, NRF_CLI_ERROR, _ft "\n", ##__VA_ARGS__)
 
 /**
  * @brief Process function, which should be executed when data is ready in the transport interface.

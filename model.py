@@ -17,14 +17,11 @@ from keras.layers import Dense
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot
 
-df = pd.read_csv('testX12.csv')
+df = pd.read_csv('somedataset.csv')
 
-df.head()
-sns.pairplot(df)
-
-X = df[['BLE1', 'BLE2', 'BLE3', 'BLE4']]
+X = df[['BLE1', 'BLE2', 'BLE3', 'BLE4', 'BLE5', 'BLE6']]
 y = df[['PosX', 'PosY']]
-y.head()
+
 
 X_train, X_test, Y_train, Y_test = train_test_split(
     X, y, test_size=0.3, random_state=101)
@@ -46,84 +43,3 @@ model.fit(X_train, Y_train, epochs=50, batch_size=10)
 
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
-
-model.evaluate(X_test, Y_test)
-
-model.evaluate(X_train, Y_train)
-
-test_predictions = model.predict(X_test)
-
-len(test_predictions)
-
-test_predictions
-
-test_predictions = pd.Series(list(test_predictions))
-
-test_predictions
-
-predictions_value_df = pd.DataFrame(Y_test)
-
-predictions_value_df.head()
-
-predictions_value_df.reset_index(drop=True, inplace=True)
-test_predictions.reset_index(drop=True, inplace=True)
-
-predictions_value_df = pd.concat([predictions_value_df, test_predictions], axis=1)
-
-predictions_value_df.columns = ['Test True PosX','Test True PosY','Predict']
-
-predictions_value_df
-
-# predictions_value_df['Predict'] = predictions_value_df['Predict'].str[0]
-
-# predictions_value_df
-
-predictions_value_df['Predict'] = predictions_value_df['Predict'].astype(str)
-
-predictions_value_df['Predict'] = predictions_value_df['Predict'].str.strip('[]')
-
-predictions_value_df
-
-# predictions_value_df[['Test Pred PosX']] = ""
-
-new = predictions_value_df.Predict.str.split(" ",n=1,expand=True)
-# new.dropna(inplace=True)
-new[1]
-
-new[0]
-
-predictions_value_df['Test Pred PosX'] = new[0]
-
-predictions_value_df['Test Pred PosY'] = new[1]
-
-predictions_value_df
-
-# predictions_value_df['Test Pred PosX'].dropna(inplace=True)
-
-# predictions_value_df['Test Pred PosX'] = predictions_value_df['Test Pred PosX'].str.strip()
-# predictions_value_df.drop(predictions_value_df[286:])
-# predictions_value_df
-
-# predictions_value_df['Test Pred PosX'] = predictions_value_df['Test Pred PosX'].apply(lambda x: float(x.split()[0].replace(',', '')))
-
-predictions_value_df['Test Pred PosX'] = predictions_value_df['Test Pred PosX'].astype(float)
-# predictions_value_df['Test Pred PosX'] = pd.to_numeric(predictions_value_df['Test Pred PosX'],errors='coerce')
-
-predictions_value_df['Test Pred PosY'] = predictions_value_df['Test Pred PosY'].astype(float)
-
-predictions_value_df.dtypes
-
-sns.regplot(x='Test True PosX',y='Test Pred PosX',data = predictions_value_df)
-
-sns.regplot(x='Test True PosY',y='Test Pred PosY',data = predictions_value_df ,color="g")
-
-from sklearn.metrics import mean_absolute_error,mean_squared_error
-
-mean_absolute_error(predictions_value_df['Test True PosX'],predictions_value_df['Test Pred PosX'])
-
-mean_absolute_error(predictions_value_df['Test True PosY'],predictions_value_df['Test Pred PosX'])
-
-mean_squared_error(predictions_value_df['Test True PosX'],predictions_value_df['Test Pred PosX'])
-
-mean_squared_error(predictions_value_df['Test True PosX'],predictions_value_df['Test Pred PosX'])
-

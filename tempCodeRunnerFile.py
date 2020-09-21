@@ -1,2 +1,1 @@
-print(row)
-        # print(len(row))
+new_col

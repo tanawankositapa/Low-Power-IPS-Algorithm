@@ -24,33 +24,50 @@ raw_df = pd.DataFrame()
 
 # ต้อง append column
 
+# แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
 with open('P1.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
 
-        # print(row)
-        # print(len(row))
         row = [''.join(row)]
-        # print(row)
-        # print(len(row))
-        # print(row)
-        # if any(", " in s for s in row):
-        #     print("fOH")
-        # else:
-        # print("not")
-        # print(row)
-        # print("haha")
-        # print(type(row))
         raw_df = raw_df.append(row)
-        # raw_df = raw_df.append(" ")
-        # if row == []:
-        #     print('hello')
-        # if row[0] in (None, ""):
-        #      print("Hello")
 
-# raw_df.columns = ['Beacon', 'RSSI', 'Major', 'Minor']
+
+# ตั้งชื่อให้ column 0
+# raw_df.columns = ['Raw', 'Beacon', 'RSSI', 'Major', 'Minor']
+raw_df.columns = ['Raw']
 # raw_df = raw_df.transpose()
-print(raw_df.head(60))
+# print(raw_df.head(10))
+# print(raw_df.head())
+# print(len(raw_df.columns))
+checklist = []
+checklist2 = []
+for row in raw_df.itertuples():
+    mac = row.Raw.split(" ")
+
+    # print(len(mac))
+    if len(mac) == 1:
+        checklist.append(mac[0])
+        checklist2.append(mac[0])
+        # print('hell')
+    if len(mac) > 1:
+        # note: mac[1] = mac address
+        # note: mac[4] = RSSI
+        # print(mac[1])
+        # raw_df = raw_df['Beacon'].append(mac[1])
+        # print(raw_df.head())
+        checklist.append(mac[1])
+        checklist2.append(mac[4])
+        # raw_df.insert(loc=0, column='Beacon', value=mac[1])
+    # print(type(row))
+    # print(row)
+# print(checklist)
+raw_df.insert(loc=0, column='Beacon', value=checklist)
+raw_df.insert(loc=1, column='RSSI', value=checklist2)
+raw_df.drop(columns='Raw', inplace=True)
+print(raw_df.head(15))
+
+
 # list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
 # indicator1, indicator2, indicator3, indicator4, indicator5, indicator6 = 0, 0, 0, 0, 0, 0
 # indicator_list = []

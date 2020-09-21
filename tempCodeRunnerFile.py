@@ -1,2 +1,2 @@
- # if row == []:
-        #     print('hello')
+print(row)
+        # print(len(row))

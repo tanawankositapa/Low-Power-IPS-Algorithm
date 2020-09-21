@@ -22,14 +22,27 @@ import csv
 # raw_df = pd.DataFrame(columns=['Beacon', 'RSSI', 'Major', 'Minor'])
 raw_df = pd.DataFrame()
 
-ต้อง append column
+# ต้อง append column
 
 with open('P1.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
-        print(row)
+
+        # print(row)
+        # print(len(row))
+        row = [''.join(row)]
+        # print(row)
+        # print(len(row))
+        # print(row)
+        # if any(", " in s for s in row):
+        #     print("fOH")
+        # else:
+        # print("not")
+        # print(row)
         # print("haha")
+        # print(type(row))
         raw_df = raw_df.append(row)
+        # raw_df = raw_df.append(" ")
         # if row == []:
         #     print('hello')
         # if row[0] in (None, ""):

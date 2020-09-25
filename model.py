@@ -65,57 +65,74 @@ for row in raw_df.itertuples():
 raw_df.insert(loc=0, column='Beacon', value=checklist)
 raw_df.insert(loc=1, column='RSSI', value=checklist2)
 raw_df.drop(columns='Raw', inplace=True)
-print(raw_df.head(15))
+# print(raw_df.head(15))
 
 
-# list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
-# indicator1, indicator2, indicator3, indicator4, indicator5, indicator6 = 0, 0, 0, 0, 0, 0
-# indicator_list = []
-# for row in raw_df.itertuples():
-#     mac = row.Beacon.split(" ")
-#     rssi = row.RSSI.split(" ")
-#     # print(mac[1])
-#     if mac[1] == "E0:D9:DA:22:34:1B":
-#         list_B1.append(rssi[2])
-#         indicator1 += 1
-#         indicator_list.append(indicator1)
-#     if mac[1] == "FA:0C:C8:48:E6:6A":
-#         list_B2.append(rssi[2])
-#         indicator2 += 1
-#         indicator_list.append(indicator2)
-#     if mac[1] == "EE:11:28:0E:61:39":
-#         list_B3.append(rssi[2])
-#         indicator3 += 1
-#         indicator_list.append(indicator3)
-#     if mac[1] == "CE:0E:9E:D9:8F:3B":
-#         list_B4.append(rssi[2])
-#         indicator4 += 1
-#         indicator_list.append(indicator4)
-#     if mac[1] == "F6:A0:DA:F5:E3:F3":
-#         list_B5.append(rssi[2])
-#         indicator5 += 1
-#         indicator_list.append(indicator5)
-#     if mac[1] == "E9:F7:FE:7E:D0:48":
-#         list_B6.append(rssi[2])
-#         indicator6 += 1
-#         indicator_list.append(indicator6)
-#     else:
-#         # list_B1.append(0)
-#         indicator_list.append(0)
+list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
+indicator1, indicator2, indicator3, indicator4, indicator5, indicator6 = 0, 0, 0, 0, 0, 0
+indicator_list = []
+is_data_continue = True
+len_counting = 0
+len_rawdf = len(raw_df)
+# print(len(raw_df))
+while len_counting < 58:
 
-# # if 0 in indicator_list:
+    for row in raw_df.iloc[len_counting:len_rawdf].itertuples():
+        len_counting += 1
+        mac = row.Beacon
+        rssi = row.RSSI
+        # print(mac)
+        # print(rssi)
+        # print(row)
+        # print(len(row))
+
+        # ตรวจสอบว่า row ไหนที่เป็นช่องว่าง (หมดชุดข้อมูลที่ได้มา)
+        if mac == "":
+            # print('Empty')
+            
+            break
+        if mac == "E0:D9:DA:22:34:1B":
+            list_B1.append(rssi)
+            indicator1 += 1
+            indicator_list.append(indicator1)
+        if mac == "FA:0C:C8:48:E6:6A":
+            list_B2.append(rssi)
+            indicator2 += 1
+            indicator_list.append(indicator2)
+        if mac == "EE:11:28:0E:61:39":
+            list_B3.append(rssi)
+            indicator3 += 1
+            indicator_list.append(indicator3)
+        if mac == "CE:0E:9E:D9:8F:3B":
+            list_B4.append(rssi)
+            indicator4 += 1
+            indicator_list.append(indicator4)
+        if mac == "F6:A0:DA:F5:E3:F3":
+            list_B5.append(rssi)
+            indicator5 += 1
+            indicator_list.append(indicator5)
+        if mac == "E9:F7:FE:7E:D0:48":
+            list_B6.append(rssi)
+            indicator6 += 1
+            indicator_list.append(indicator6)
+        else:
+            # list_B1.append(0)
+            indicator_list.append(0)
+
+
+# # # if 0 in indicator_list:
 
 # # print(list_B1)
 # # df['B1'] = list_B1
 # # print(df.head())
-# print(list_B3)
+# # print(list_B3)
 # real_df = pd.DataFrame(list_B1, columns=['B1'])
 # real_df['B2'] = list_B2
 # # real_df['B3'] = list_B3
 # real_df['B4'] = list_B4
 # real_df['B5'] = list_B5
 # real_df['B6'] = list_B6
-# print(real_df.head())
+# print(real_df.head(51))
 
 ###########################################################################################################
 

@@ -9,7 +9,7 @@ Original file is located at
 
 import pandas as pd
 # import seaborn as sns
-# import numpy as np
+import numpy as np
 
 # from numpy import loadtxt
 # from keras.models import Sequential
@@ -25,7 +25,7 @@ raw_df = pd.DataFrame()
 # ต้อง append column
 
 # แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
-with open('P1.csv', 'r') as csvfile:
+with open('Dataset/p7.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
 
@@ -53,6 +53,7 @@ for row in raw_df.itertuples():
     if len(mac) > 1:
         # note: mac[1] = mac address
         # note: mac[4] = RSSI
+
         # print(mac[1])
         # raw_df = raw_df['Beacon'].append(mac[1])
         # print(raw_df.head())
@@ -69,13 +70,11 @@ raw_df.drop(columns='Raw', inplace=True)
 
 
 list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
-indicator1, indicator2, indicator3, indicator4, indicator5, indicator6 = 0, 0, 0, 0, 0, 0
-indicator_list = []
-is_data_continue = True
+indicator_list = [0, 0, 0, 0, 0, 0]
 len_counting = 0
 len_rawdf = len(raw_df)
-# print(len(raw_df))
-while len_counting < 58:
+
+while len_counting < len_rawdf:
 
     for row in raw_df.iloc[len_counting:len_rawdf].itertuples():
         len_counting += 1
@@ -86,53 +85,65 @@ while len_counting < 58:
         # print(row)
         # print(len(row))
 
-        # ตรวจสอบว่า row ไหนที่เป็นช่องว่าง (หมดชุดข้อมูลที่ได้มา)
-        if mac == "":
-            # print('Empty')
-            
-            break
         if mac == "E0:D9:DA:22:34:1B":
             list_B1.append(rssi)
-            indicator1 += 1
-            indicator_list.append(indicator1)
+            indicator_list[0] = 1
+
         if mac == "FA:0C:C8:48:E6:6A":
             list_B2.append(rssi)
-            indicator2 += 1
-            indicator_list.append(indicator2)
+            indicator_list[1] = 1
+
         if mac == "EE:11:28:0E:61:39":
             list_B3.append(rssi)
-            indicator3 += 1
-            indicator_list.append(indicator3)
+            indicator_list[2] = 1
+
         if mac == "CE:0E:9E:D9:8F:3B":
             list_B4.append(rssi)
-            indicator4 += 1
-            indicator_list.append(indicator4)
+            indicator_list[3] = 1
+
         if mac == "F6:A0:DA:F5:E3:F3":
             list_B5.append(rssi)
-            indicator5 += 1
-            indicator_list.append(indicator5)
+            indicator_list[4] = 1
+
         if mac == "E9:F7:FE:7E:D0:48":
             list_B6.append(rssi)
-            indicator6 += 1
-            indicator_list.append(indicator6)
-        else:
-            # list_B1.append(0)
-            indicator_list.append(0)
+            indicator_list[5] = 1
 
+        # ตรวจสอบว่า row ไหนที่เป็นช่องว่าง (หมดชุดข้อมูลที่ได้มา)
+        if mac == "" or len_counting == len_rawdf:
 
-# # # if 0 in indicator_list:
+            if indicator_list[0] == 0:
+                list_B1.append(np.NaN)
 
-# # print(list_B1)
-# # df['B1'] = list_B1
-# # print(df.head())
-# # print(list_B3)
-# real_df = pd.DataFrame(list_B1, columns=['B1'])
-# real_df['B2'] = list_B2
-# # real_df['B3'] = list_B3
-# real_df['B4'] = list_B4
-# real_df['B5'] = list_B5
-# real_df['B6'] = list_B6
-# print(real_df.head(51))
+            if indicator_list[1] == 0:
+                list_B2.append(np.NaN)
+
+            if indicator_list[2] == 0:
+                list_B3.append(np.NaN)
+
+            if indicator_list[3] == 0:
+                list_B4.append(np.NaN)
+
+            if indicator_list[4] == 0:
+                list_B5.append(np.NaN)
+
+            if indicator_list[5] == 0:
+                list_B6.append(np.NaN)
+
+            break
+
+    indicator_list = [0, 0, 0, 0, 0, 0]
+
+# print(indicator_list)
+
+real_df = pd.DataFrame(list_B1, columns=['B1'])
+real_df['B2'] = list_B2
+real_df['B3'] = list_B3
+real_df['B4'] = list_B4
+real_df['B5'] = list_B5
+real_df['B6'] = list_B6
+real_df = real_df.dropna()
+print(real_df.head(50))
 
 ###########################################################################################################
 

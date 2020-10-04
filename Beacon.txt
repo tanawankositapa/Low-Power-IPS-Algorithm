@@ -18,3 +18,6 @@ MAC: C5:0F:50:7A:9C:FE , RSSI: -85 dBm, Major: 0001, Minor: 0002 --
 
 ตั้ง 89
 นอน 86
+
+UUID
+E923 8935 A799 FA5E 4B71 CA92 007A 6523  

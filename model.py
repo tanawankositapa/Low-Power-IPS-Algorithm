@@ -18,6 +18,7 @@ import numpy as np
 # from matplotlib import pyplot
 import csv
 
+
 # raw_df = pd.read_csv('P1.csv')
 # raw_df = pd.DataFrame(columns=['Beacon', 'RSSI', 'Major', 'Minor'])
 raw_df = pd.DataFrame()
@@ -143,8 +144,41 @@ real_df['B4'] = list_B4
 real_df['B5'] = list_B5
 real_df['B6'] = list_B6
 real_df = real_df.dropna()
-print(real_df.head(50))
+# print(real_df.head())
+# real_df = real_df.reset_index(drop=True,inplace=True)
+# real_df['PosX']
+# real_df['PosY']
+real_df.index = pd.RangeIndex(len(real_df.index))
+# print(len(real_df))
+# print(real_df.head())
 
+# def get_col_name(row):
+#     b = (real_df.ix[row.name] == row['value'])
+#     return b.index[b.argmax()]
+
+# print(real_df.columns)
+temp_list = []
+# for row in real_df.itertuples():
+for row in real_df.iterrows():
+    # print(row[1][1])
+    print(row[1].index[0])
+    # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
+    # temp_list.extend((int(row[0]),int(row[1]),int(row[2]),int(row[3]),int(row[4]),int(row[5]),))
+    # print(temp_list)
+    temp_list.sort()
+    temp_list.reverse()
+    print(temp_list)
+    # print(row.index)
+    # for (column_name, column_data) in real_df.iteritems():
+    #     # column_object = real_df[column]
+    #     # print(column_object.values)
+    #     print(column_name)
+    #     print(column_data)
+    #     break
+    break
+    # print(temp_list)
+    # print(type(temp_list[0]))
+    # break
 ###########################################################################################################
 
 # df = pd.read_csv('somedataset.csv')

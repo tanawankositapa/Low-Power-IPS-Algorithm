@@ -8,25 +8,40 @@ Original file is located at
 """
 
 import pandas as pd
-# import seaborn as sns
+import seaborn as sns
 import numpy as np
 
-# from numpy import loadtxt
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from sklearn.model_selection import train_test_split
-# from matplotlib import pyplot
+from numpy import loadtxt
+
+from keras.models import Sequential
+from keras.layers import Dense
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+# from sklearn.metrics import mean_absolute_percentage_error
+from matplotlib import pyplot
+
 import csv
+import trilateration
 
 
-# raw_df = pd.read_csv('P1.csv')
-# raw_df = pd.DataFrame(columns=['Beacon', 'RSSI', 'Major', 'Minor'])
+def percentage_error(actual, predicted):
+    res = np.empty(actual.shape)
+    for j in range(actual.shape[0]):
+        if actual[j] != 0:
+            res[j] = (actual[j] - predicted[j]) / actual[j]
+        else:
+            res[j] = predicted[j] / np.mean(actual)
+    return res
+
+
+def mean_absolute_percentage_error(y_true, y_pred):
+    return np.mean(np.abs(percentage_error(np.asarray(y_true), np.asarray(y_pred)))) * 100
+
+
 raw_df = pd.DataFrame()
 
-# ต้อง append column
-
 # แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
-with open('Dataset/p7.csv', 'r') as csvfile:
+with open('Dataset/dataset.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
 
@@ -35,12 +50,10 @@ with open('Dataset/p7.csv', 'r') as csvfile:
 
 
 # ตั้งชื่อให้ column 0
-# raw_df.columns = ['Raw', 'Beacon', 'RSSI', 'Major', 'Minor']
 raw_df.columns = ['Raw']
-# raw_df = raw_df.transpose()
-# print(raw_df.head(10))
 # print(raw_df.head())
-# print(len(raw_df.columns))
+
+# extract ค่า mac address และ rssi ออกมาจาก raw dataset
 checklist = []
 checklist2 = []
 for row in raw_df.itertuples():
@@ -50,26 +63,21 @@ for row in raw_df.itertuples():
     if len(mac) == 1:
         checklist.append(mac[0])
         checklist2.append(mac[0])
-        # print('hell')
+
     if len(mac) > 1:
         # note: mac[1] = mac address
         # note: mac[4] = RSSI
-
-        # print(mac[1])
-        # raw_df = raw_df['Beacon'].append(mac[1])
-        # print(raw_df.head())
         checklist.append(mac[1])
         checklist2.append(mac[4])
-        # raw_df.insert(loc=0, column='Beacon', value=mac[1])
-    # print(type(row))
-    # print(row)
+
+
 # print(checklist)
 raw_df.insert(loc=0, column='Beacon', value=checklist)
 raw_df.insert(loc=1, column='RSSI', value=checklist2)
 raw_df.drop(columns='Raw', inplace=True)
 # print(raw_df.head(15))
 
-
+# กรอง mac address ของ beacon อื่นออก และตรวจสอบว่าในการรับข้อมูลมาแต่ละครั้ง มี beacon ตัวไหนหายไป
 list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
 indicator_list = [0, 0, 0, 0, 0, 0]
 len_counting = 0
@@ -90,23 +98,23 @@ while len_counting < len_rawdf:
             list_B1.append(rssi)
             indicator_list[0] = 1
 
-        if mac == "FA:0C:C8:48:E6:6A":
+        elif mac == "FA:0C:C8:48:E6:6A":
             list_B2.append(rssi)
             indicator_list[1] = 1
 
-        if mac == "EE:11:28:0E:61:39":
+        elif mac == "EE:11:28:0E:61:39":
             list_B3.append(rssi)
             indicator_list[2] = 1
 
-        if mac == "CE:0E:9E:D9:8F:3B":
+        elif mac == "CE:0E:9E:D9:8F:3B":
             list_B4.append(rssi)
             indicator_list[3] = 1
 
-        if mac == "F6:A0:DA:F5:E3:F3":
+        elif mac == "F6:A0:DA:F5:E3:F3":
             list_B5.append(rssi)
             indicator_list[4] = 1
 
-        if mac == "E9:F7:FE:7E:D0:48":
+        elif mac == "E9:F7:FE:7E:D0:48":
             list_B6.append(rssi)
             indicator_list[5] = 1
 
@@ -144,66 +152,148 @@ real_df['B4'] = list_B4
 real_df['B5'] = list_B5
 real_df['B6'] = list_B6
 real_df = real_df.dropna()
-# print(real_df.head())
-# real_df = real_df.reset_index(drop=True,inplace=True)
-# real_df['PosX']
-# real_df['PosY']
 real_df.index = pd.RangeIndex(len(real_df.index))
-# print(len(real_df))
-# print(real_df.head())
 
-# def get_col_name(row):
-#     b = (real_df.ix[row.name] == row['value'])
-#     return b.index[b.argmax()]
-
-# print(real_df.columns)
+# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
 temp_list = []
+pair = {}
+posx_list = []
+posy_list = []
 # for row in real_df.itertuples():
 for row in real_df.iterrows():
-    # print(row[1][1])
-    print(row[1].index[0])
+
+    # print(int(row[1][5]))
+    # print(row[1].index[0])
+    pair = {
+        row[1].index[0]: row[1][0],
+        row[1].index[1]: row[1][1],
+        row[1].index[2]: row[1][2],
+        row[1].index[3]: row[1][3],
+        row[1].index[4]: row[1][4],
+        row[1].index[5]: row[1][5],
+    }
+    # print(pair)
+    key_list = list(pair.keys())
+    val_list = list(pair.values())
+    # print(val_list)
     # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
-    # temp_list.extend((int(row[0]),int(row[1]),int(row[2]),int(row[3]),int(row[4]),int(row[5]),))
-    # print(temp_list)
+    temp_list.extend((int(row[1][0]), int(row[1][1]), int(
+        row[1][2]), int(row[1][3]), int(row[1][4]), int(row[1][5]),))
+
     temp_list.sort()
     temp_list.reverse()
-    print(temp_list)
-    # print(row.index)
-    # for (column_name, column_data) in real_df.iteritems():
-    #     # column_object = real_df[column]
-    #     # print(column_object.values)
-    #     print(column_name)
-    #     print(column_data)
-    #     break
-    break
     # print(temp_list)
-    # print(type(temp_list[0]))
-    # break
+    rssi1 = temp_list[0]
+    rssi2 = temp_list[1]
+    rssi3 = temp_list[2]
+    # a = pair[]
+    b_first = key_list[val_list.index(str(rssi1))]
+    b_second = key_list[val_list.index(str(rssi2))]
+    b_third = key_list[val_list.index(str(rssi3))]
+
+    result = trilateration.calculate(
+        rssi1, rssi2, rssi3, b_first, b_second, b_third)
+    x, y = result
+    # print(x)
+    # print(y)
+    posx_list.append(x)
+    posy_list.append(y)
+    temp_list = []
+    # pair = {}
+    # print(b_first)
+    # print(b_second)
+    # print(b_third)
+
+real_df['PosX'] = posx_list
+real_df['PosY'] = posy_list
+real_df = real_df.replace([np.inf, -np.inf], np.nan)
+real_df = real_df.dropna()
+real_df['B1'] = pd.to_numeric(real_df['B1'])
+real_df['B2'] = pd.to_numeric(real_df['B2'])
+real_df['B3'] = pd.to_numeric(real_df['B3'])
+real_df['B4'] = pd.to_numeric(real_df['B4'])
+real_df['B5'] = pd.to_numeric(real_df['B5'])
+real_df['B6'] = pd.to_numeric(real_df['B6'])
+# print(real_df.head(10))
+# print(len(real_df))
+# print(posx_list)
+# print(real_df['PosY'])
 ###########################################################################################################
 
-# df = pd.read_csv('somedataset.csv')
+# นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
+# real_df = pd.read_csv('Dataset/testX12.csv')
+# X = real_df[['BLE1', 'BLE2', 'BLE3', 'BLE4']]
+X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
+y = real_df[['PosX', 'PosY']]
+# print(y['PosX'])
+# print(X['B6'])
 
-# X = df[['BLE1', 'BLE2', 'BLE3', 'BLE4', 'BLE5', 'BLE6']]
-# y = df[['PosX', 'PosY']]
 
+X_train, X_test, Y_train, Y_test = train_test_split(
+    X, y, test_size=0.3, random_state=101)
 
-# X_train, X_test, Y_train, Y_test = train_test_split(
-#     X, y, test_size=0.3, random_state=101)
+model = Sequential()
+# add layer ให้โมเดล
+# input dimension = 4 เพราะมี 4 feature (BLE1-4)
+model.add(Dense(4, input_dim=6, activation='relu'))
+model.add(Dense(12, activation='relu'))
+model.add(Dense(12, activation='relu'))
 
-# model = Sequential()
-# # add layer ให้โมเดล
-# # input dimension = 4 เพราะมี 4 feature (BLE1-4)
-# model.add(Dense(4, input_dim=4, activation='relu'))
-# model.add(Dense(4, activation='relu'))
-# model.add(Dense(4, activation='relu'))
+model.add(Dense(2, activation='linear'))
+# model.add(Dense(2))
 
-# model.add(Dense(2, activation='linear'))
-# # model.add(Dense(2))
+model.compile(loss='mse',
+              optimizer='rmsprop', metrics=['accuracy'])
 
-# model.compile(loss='mse',
-#               optimizer='rmsprop', metrics=['accuracy'])
+model.fit(X_train, Y_train, epochs=250, batch_size=10)
 
-# model.fit(X_train, Y_train, epochs=50, batch_size=10)
+_, accuracy = model.evaluate(X_test, Y_test)
+print('Accuracy: %.2f' % (accuracy*100))
 
-# _, accuracy = model.evaluate(X_test, Y_test)
-# print('Accuracy: %.2f' % (accuracy*100))
+# print(model.evaluate(X_test, Y_test))
+# print(model.evaluate(X_train, Y_train))
+test_predictions = model.predict(X_test)
+test_predictions = pd.Series(list(test_predictions))
+predictions_value_df = pd.DataFrame(Y_test)
+predictions_value_df.reset_index(drop=True, inplace=True)
+test_predictions.reset_index(drop=True, inplace=True)
+
+predictions_value_df = pd.concat(
+    [predictions_value_df, test_predictions], axis=1)
+predictions_value_df.columns = ['Test True PosX', 'Test True PosY', 'Predict']
+
+predictions_value_df['Predict'] = predictions_value_df['Predict'].astype(str)
+
+predictions_value_df['Predict'] = predictions_value_df['Predict'].str.strip(
+    '[]')
+
+new = predictions_value_df.Predict.str.split(" ", n=1, expand=True)
+
+predictions_value_df['Test Pred PosX'] = new[0]
+
+predictions_value_df['Test Pred PosY'] = new[1]
+
+predictions_value_df['Test Pred PosX'] = predictions_value_df['Test Pred PosX'].astype(
+    float)
+
+predictions_value_df['Test Pred PosY'] = predictions_value_df['Test Pred PosY'].astype(
+    float)
+
+sns.regplot(x='Test True PosX', y='Test Pred PosX', data=predictions_value_df)
+
+sns.regplot(x='Test True PosY', y='Test Pred PosY',
+            data=predictions_value_df, color="g")
+
+print(predictions_value_df.head(10))
+
+print(mean_squared_error(
+    predictions_value_df['Test True PosX'], predictions_value_df['Test Pred PosX']))
+
+print(mean_squared_error(
+    predictions_value_df['Test True PosY'], predictions_value_df['Test Pred PosY']))
+
+print(mean_absolute_error(
+    predictions_value_df['Test True PosX'], predictions_value_df['Test Pred PosX']))
+
+print(mean_absolute_error(
+    predictions_value_df['Test True PosY'], predictions_value_df['Test Pred PosY']))

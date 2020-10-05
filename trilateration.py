@@ -81,8 +81,9 @@ def calculate(rssi1, rssi2, rssi3, b_first, b_second, b_third):
     # print(det_A)
     # print(det_A1)
     # print(det_A2)
-    print(x)
-    print(y)
+    # print(x)
+    # print(y)
+    return x, y
     # det_A1
     # det_A2
     # X = []
@@ -106,4 +107,7 @@ def calculate(rssi1, rssi2, rssi3, b_first, b_second, b_third):
     #     # Cramer.check(A, x, y, z)
 
 
-# calculate(-48, -61, -65, "B1", "B2", "B3")
+# result = calculate(-48, -61, -65, "B1", "B2", "B3")
+# x,y = result
+# print(x)
+# print(y)

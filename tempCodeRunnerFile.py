@@ -1,6 +1,5 @@
-for (column_name, column_data) in real_df.iteritems():
-    #     # column_object = real_df[column]
-    #     # print(column_object.values)
-    #     print(column_name)
-    #     print(column_data)
-    #     break
+ from numpy import loadtxt
+# from keras.models import Sequential
+# from keras.layers import Dense
+# from sklearn.model_selection import train_test_split
+# from matplotlib import pyplot

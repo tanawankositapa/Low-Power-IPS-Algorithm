@@ -20,10 +20,7 @@ beacon_position = {
     "B6": b6_pos,
 }
 
-
 def calculate(rssi1, rssi2, rssi3, b_first, b_second, b_third):
-    # x = beacon_position[b_first]
-    # print(x) # x = [0,0.3]
 
     a = beacon_position[b_first]
     b = beacon_position[b_second]
@@ -39,6 +36,7 @@ def calculate(rssi1, rssi2, rssi3, b_first, b_second, b_third):
     d1 = math.pow(10, exp1)
     d2 = math.pow(10, exp2)
     d3 = math.pow(10, exp3)
+    
     # x_coeff1 = [[1, pow(d1, 2)-pow(h1, 2)-pow(k1, 2), -2*k1]]
     # x_coeff2 = [[1, pow(d1, 2)-pow(h1, 2)-pow(k1, 2), -2*k2]]
     # x_coeff3 = [[1, pow(d1, 2)-pow(h1, 2)-pow(k1, 2), -2*k3]]
@@ -84,27 +82,7 @@ def calculate(rssi1, rssi2, rssi3, b_first, b_second, b_third):
     # print(x)
     # print(y)
     return x, y
-    # det_A1
-    # det_A2
-    # X = []
-    # for i in range(0, len(constant)):
-    #     for j in range(0, len(constant)):
-    #         coeff2[j][i] = constant[j]
-    #         if i > 0:
-    #             coeff2[j][i-1] = coeff[j][i-1]
-    #     X.append(round(linalg.det(coeff2)/linalg.det(coeff), 1))
-    # print('w=%s'%X[0],'x=%s'%X[1],'y=%s'%X[2])
-
-    # A = np.array(matrix)
-    # A.shape = (3, 4)
-    # result = Cramer.solve(A)
-    # if result:
-    #     x, y, z = result
-    #     print('solution')
-    #     print('x =', x)
-    #     print('y =', y)
-    #     # print('z =', z, '\n')
-    #     # Cramer.check(A, x, y, z)
+    
 
 
 # result = calculate(-48, -61, -65, "B1", "B2", "B3")

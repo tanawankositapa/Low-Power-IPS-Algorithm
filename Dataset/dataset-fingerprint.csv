@@ -5613,7 +5613,7 @@ MAC: E0:D9:DA:22:34:1B , RSSI: -55 dBm, Major: 0001, Minor: 0002, 4, 5
 MAC: C5:0F:50:7A:9C:FE , RSSI: -82 dBm, Major: 0001, Minor: 0002, 4, 5
 MAC: CE:0E:9E:D9:8F:3B , RSSI: -56 dBm, Major: 0001, Minor: 0002, 4, 5
 MAC: FA:0C:C8:48:E6:6A , RSSI: -62 dBm, Major: 0001, Minor: 0002, 4, 5
-MAC: F6:A0:DA:F5:E3:F3 , RSSI: -62 dBm, Major: 0001, Minor: 00024, 5
+MAC: F6:A0:DA:F5:E3:F3 , RSSI: -62 dBm, Major: 0001, Minor: 0002, 4, 5
 ,,,,,
 ,,,,,
 MAC: E0:D9:DA:22:34:1B , RSSI: -62 dBm, Major: 0001, Minor: 0002, 5, 5
@@ -6601,7 +6601,7 @@ MAC: E0:D9:DA:22:34:1B , RSSI: -75 dBm, Major: 0001, Minor: 0002, 3, 6
 MAC: C5:0F:50:7A:9C:FE , RSSI: -76 dBm, Major: 0001, Minor: 0002, 3, 6
 MAC: CE:0E:9E:D9:8F:3B , RSSI: -46 dBm, Major: 0001, Minor: 0002, 3, 6
 ,,,,,
-,,,,3,6
+,,,,,
 MAC: FD:CC:03:3B:FB:50 , RSSI: -85 dBm, Major: 0001, Minor: 0002, 3, 6
 MAC: CE:0E:9E:D9:8F:3B , RSSI: -46 dBm, Major: 0001, Minor: 0002, 3, 6
 MAC: CC:88:63:2A:5A:D6 , RSSI: -77 dBm, Major: 0001, Minor: 0002, 3, 6
@@ -7540,8 +7540,8 @@ MAC: CE:0E:9E:D9:8F:3B , RSSI: -56 dBm, Major: 0001, Minor: 0002, 2, 7
 MAC: CC:88:63:2A:5A:D6 , RSSI: -80 dBm, Major: 0001, Minor: 0002, 2, 7
 MAC: C5:0F:50:7A:9C:FE , RSSI: -84 dBm, Major: 0001, Minor: 0002, 2, 7
 MAC: FA:0C:C8:48:E6:6A , RSSI: -64 dBm, Major: 0001, Minor: 0002, 2, 7
-,,,,2,7
-,,,,2,7
+,,,,,
+,,,,,
 MAC: FA:0C:C8:48:E6:6A , RSSI: -67 dBm, Major: 0001, Minor: 0002, 2, 7
 MAC: E9:F7:FE:7E:D0:48 , RSSI: -64 dBm, Major: 0001, Minor: 0002, 2, 7
 MAC: CE:0E:9E:D9:8F:3B , RSSI: -54 dBm, Major: 0001, Minor: 0002, 2, 7
@@ -9392,8 +9392,8 @@ MAC: EE:11:28:0E:61:39 , RSSI: -55 dBm, Major: 0001, Minor: 0002, 1, 8
 MAC: F6:A0:DA:F5:E3:F3 , RSSI: -48 dBm, Major: 0001, Minor: 0002, 1, 8
 MAC: C5:0F:50:7A:9C:FE , RSSI: -87 dBm, Major: 0001, Minor: 0002, 1, 8
 MAC: E9:F7:FE:7E:D0:48 , RSSI: -62 dBm, Major: 0001, Minor: 0002, 1, 8
-,,,,1,8
-,,,,1,8
+,,,,,
+,,,,,
 MAC: CC:88:63:2A:5A:D6 , RSSI: -76 dBm, Major: 0001, Minor: 0002, 1, 8
 MAC: E9:F7:FE:7E:D0:48 , RSSI: -56 dBm, Major: 0001, Minor: 0002, 1, 8
 MAC: E0:D9:DA:22:34:1B , RSSI: -60 dBm, Major: 0001, Minor: 0002, 1, 8

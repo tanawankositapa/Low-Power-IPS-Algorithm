@@ -8,10 +8,11 @@ from keras.models import Sequential
 from keras.layers import Dense
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-# from sklearn.metrics import mean_absolute_percentage_error
+
 from matplotlib import pyplot
 
 import csv
+import trilateration
 raw_df = pd.DataFrame()
 
 # แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
@@ -150,6 +151,68 @@ real_df['PosY'] = posy_list
 real_df = real_df.dropna()
 real_df.index = pd.RangeIndex(len(real_df.index))
 
+# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
+temp_list = []
+pair = {}
+tri_posx_list = []
+tri_posy_list = []
+# for row in real_df.itertuples():
+for row in real_df.iterrows():
+
+    # print(int(row[1][5]))
+    # print(row[1].index[0])
+    pair = {
+        row[1].index[0]: row[1][0],
+        row[1].index[1]: row[1][1],
+        row[1].index[2]: row[1][2],
+        row[1].index[3]: row[1][3],
+        row[1].index[4]: row[1][4],
+        row[1].index[5]: row[1][5],
+    }
+    # print(pair)
+    key_list = list(pair.keys())
+    val_list = list(pair.values())
+    # print(val_list)
+    # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
+    temp_list.extend((int(row[1][0]), int(row[1][1]), int(
+        row[1][2]), int(row[1][3]), int(row[1][4]), int(row[1][5]),))
+
+    temp_list.sort()
+    temp_list.reverse()
+    # print(temp_list)
+    rssi1 = temp_list[0]
+    rssi2 = temp_list[1]
+    rssi3 = temp_list[2]
+    # a = pair[]
+    b_first = key_list[val_list.index(str(rssi1))]
+    b_second = key_list[val_list.index(str(rssi2))]
+    b_third = key_list[val_list.index(str(rssi3))]
+
+    result = trilateration.calculate(
+        rssi1, rssi2, rssi3, b_first, b_second, b_third)
+    x, y = result
+    # print(x)
+    # print(y)
+    tri_posx_list.append(x)
+    tri_posy_list.append(y)
+    temp_list = []
+    # pair = {}
+    # print(b_first)
+    # print(b_second)
+    # print(b_third)
+tri_df = pd.DataFrame()
+tri_df['PosX'] = tri_posx_list
+tri_df['PosY'] = tri_posy_list
+tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
+tri_df = tri_df.dropna()
+print(tri_df.head(10))
+# ###################################################################
+# print(posx_list)
+## real_df['PosX'] = posx_list
+## real_df['PosY'] = posy_list
+## real_df = real_df.dropna()
+## real_df.index = pd.RangeIndex(len(real_df.index))
+
 real_df['B1'] = pd.to_numeric(real_df['B1'])
 real_df['B2'] = pd.to_numeric(real_df['B2'])
 real_df['B3'] = pd.to_numeric(real_df['B3'])
@@ -158,7 +221,7 @@ real_df['B5'] = pd.to_numeric(real_df['B5'])
 real_df['B6'] = pd.to_numeric(real_df['B6'])
 real_df['PosX'] = pd.to_numeric(real_df['PosX'])
 real_df['PosY'] = pd.to_numeric(real_df['PosY'])
-# print(real_df.head(50))
+print(real_df.head(20))
 
 
 ##############################
@@ -201,9 +264,13 @@ predictions_value_df.reset_index(drop=True, inplace=True)
 test_predictions.reset_index(drop=True, inplace=True)
 
 predictions_value_df = pd.concat(
-    [predictions_value_df, test_predictions], axis=1)
-predictions_value_df.columns = ['TestTruePosX', 'TestTruePosY', 'Predict']
-
+    [predictions_value_df, test_predictions, tri_df], axis=1)
+predictions_value_df.columns = ['TestTruePosX',
+                                'TestTruePosY', 'Predict', 'TriPosX', 'TriPosY']
+# งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
+predictions_value_df = predictions_value_df.dropna()
+#####
+# print(predictions_value_df.head(20))
 predictions_value_df['Predict'] = predictions_value_df['Predict'].astype(str)
 
 predictions_value_df['Predict'] = predictions_value_df['Predict'].str.strip(
@@ -240,17 +307,23 @@ predictions_value_df['TestPredPosY'] = predictions_value_df['TestPredPosY'].asty
 
 # sns.regplot(x='Test True PosY', y='Test Pred PosY',
 #             data=predictions_value_df, color="g")
-
+predictions_value_df = predictions_value_df.drop(['Predict'], axis=1)
 print(predictions_value_df.head(30))
 
-print(mean_squared_error(
-    predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
+# print(mean_squared_error(
+#     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
 
-print(mean_squared_error(
-    predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
+# print(mean_squared_error(
+#     predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
 
-print(mean_absolute_error(
-    predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
+print("MAE-PosX-KnownPoint: %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX'])))
 
-print(mean_absolute_error(
-    predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
+print("MAE-PosY-KnownPoint %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY'])))
+
+print("MAE-PosX-Trilateration: %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosX'], predictions_value_df['TriPosX'])))
+
+print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))

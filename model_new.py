@@ -13,6 +13,9 @@ from matplotlib import pyplot
 
 import csv
 import trilateration
+
+from sklearn import preprocessing
+
 raw_df = pd.DataFrame()
 
 # แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
@@ -69,13 +72,13 @@ len_counting = 0
 len_rawdf = len(raw_df)
 posx_list = []
 posy_list = []
-assert_counting = 0
+insert_counting = 0
 while len_counting < len_rawdf:
 
     for row in raw_df.iloc[len_counting:len_rawdf].itertuples():
         len_counting += 1
-        if assert_counting != 1:
-            assert_counting += 1
+        if insert_counting != 1:
+            insert_counting += 1
         mac = row.Beacon
         rssi = row.RSSI
         PosX = row.PosX
@@ -110,10 +113,10 @@ while len_counting < len_rawdf:
             list_B6.append(rssi)
             indicator_list[5] = 1
 
-        if assert_counting == 1:
+        if insert_counting == 1:
             posx_list.append(PosX)
             posy_list.append(PosY)
-            assert_counting += 1
+            insert_counting += 1
         # ตรวจสอบว่า row ไหนที่เป็นช่องว่าง (หมดชุดข้อมูลที่ได้มา)
         if mac == "" or len_counting == len_rawdf:
 
@@ -136,7 +139,7 @@ while len_counting < len_rawdf:
                 list_B6.append(np.NaN)
 
             break
-    assert_counting = 0
+    insert_counting = 0
     indicator_list = [0, 0, 0, 0, 0, 0]
 
 
@@ -205,7 +208,7 @@ tri_df['PosX'] = tri_posx_list
 tri_df['PosY'] = tri_posy_list
 tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
 tri_df = tri_df.dropna()
-print(tri_df.head(10))
+# print(tri_df.head(10))
 # ###################################################################
 # print(posx_list)
 ## real_df['PosX'] = posx_list
@@ -221,8 +224,15 @@ real_df['B5'] = pd.to_numeric(real_df['B5'])
 real_df['B6'] = pd.to_numeric(real_df['B6'])
 real_df['PosX'] = pd.to_numeric(real_df['PosX'])
 real_df['PosY'] = pd.to_numeric(real_df['PosY'])
-print(real_df.head(20))
+print(len(real_df))
+# print(real_df.head(20))
+##############################
+# min_max_scaler = preprocessing.MinMaxScaler()
+# real_df_scaled = min_max_scaler.fit_transform(real_df)
+# df_normalized = pd.DataFrame(real_df_scaled)
+# print(df_normalized.head(10))
 
+#############################
 
 ##############################
 # นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
@@ -230,6 +240,8 @@ print(real_df.head(20))
 # X = real_df[['BLE1', 'BLE2', 'BLE3', 'BLE4']]
 X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
 y = real_df[['PosX', 'PosY']]
+# X = df_normalized[[0, 1, 2, 3, 4, 5]]
+# y = df_normalized[[6, 7]]
 # print(y['PosX'])
 # print(X['B6'])
 
@@ -240,17 +252,16 @@ X_train, X_test, Y_train, Y_test = train_test_split(
 model = Sequential()
 # add layer ให้โมเดล
 # input dimension = 6 เพราะมี 6 feature (B1-6)
-model.add(Dense(4, input_dim=6, activation='relu'))
-model.add(Dense(12, activation='relu'))
-model.add(Dense(12, activation='relu'))
-
+model.add(Dense(100, input_dim=6, activation='relu'))
+model.add(Dense(100, activation='relu'))
 model.add(Dense(2, activation='linear'))
 # model.add(Dense(2))
 
 model.compile(loss='mse',
               optimizer='rmsprop', metrics=['accuracy'])
 
-model.fit(X_train, Y_train, epochs=350, batch_size=10, verbose=0)
+model.fit(X_train, Y_train, validation_data=(
+    X_test, Y_test), epochs=350, batch_size=32)
 
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
@@ -263,12 +274,20 @@ predictions_value_df = pd.DataFrame(Y_test)
 predictions_value_df.reset_index(drop=True, inplace=True)
 test_predictions.reset_index(drop=True, inplace=True)
 
+# predictions_value_df = pd.concat(
+#     [predictions_value_df, test_predictions, tri_df], axis=1)
+# predictions_value_df.columns = ['TestTruePosX',
+#                                 'TestTruePosY', 'Predict', 'TriPosX', 'TriPosY']
+# # งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
+# predictions_value_df = predictions_value_df.dropna()
+
+
 predictions_value_df = pd.concat(
-    [predictions_value_df, test_predictions, tri_df], axis=1)
+    [predictions_value_df, test_predictions], axis=1)
 predictions_value_df.columns = ['TestTruePosX',
-                                'TestTruePosY', 'Predict', 'TriPosX', 'TriPosY']
-# งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
-predictions_value_df = predictions_value_df.dropna()
+                                'TestTruePosY', 'Predict']
+
+
 #####
 # print(predictions_value_df.head(20))
 predictions_value_df['Predict'] = predictions_value_df['Predict'].astype(str)
@@ -308,7 +327,10 @@ predictions_value_df['TestPredPosY'] = predictions_value_df['TestPredPosY'].asty
 # sns.regplot(x='Test True PosY', y='Test Pred PosY',
 #             data=predictions_value_df, color="g")
 predictions_value_df = predictions_value_df.drop(['Predict'], axis=1)
-print(predictions_value_df.head(30))
+
+pd.set_option("display.max_rows", None)
+print(len(predictions_value_df))
+print(predictions_value_df.head(100))
 
 # print(mean_squared_error(
 #     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
@@ -316,14 +338,16 @@ print(predictions_value_df.head(30))
 # print(mean_squared_error(
 #     predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
 
-print("MAE-PosX-KnownPoint: %f" % (mean_absolute_error(
+print("MAE-PosX-Model: %f" % (mean_absolute_error(
     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX'])))
 
-print("MAE-PosY-KnownPoint %f" % (mean_absolute_error(
+print("MAE-PosY-Model %f" % (mean_absolute_error(
     predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY'])))
 
-print("MAE-PosX-Trilateration: %f" % (mean_absolute_error(
-    predictions_value_df['TestTruePosX'], predictions_value_df['TriPosX'])))
+# print("MAE-PosX-Trilateration: %f" % (mean_absolute_error(
+#     predictions_value_df['TestTruePosX'], predictions_value_df['TriPosX'])))
 
-print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
-    predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
+# print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
+#     predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
+
+print(predictions_value_df.std(axis=0))

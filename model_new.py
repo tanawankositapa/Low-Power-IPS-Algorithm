@@ -1,3 +1,5 @@
+from sklearn.model_selection import GridSearchCV
+from tensorflow import keras
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -12,10 +14,12 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from matplotlib import pyplot
 
 import csv
+
+from tensorflow.python.keras import activations
 import trilateration
 
 from sklearn import preprocessing
-
+import tensorflowjs as tfjs
 raw_df = pd.DataFrame()
 
 # แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
@@ -154,67 +158,68 @@ real_df['PosY'] = posy_list
 real_df = real_df.dropna()
 real_df.index = pd.RangeIndex(len(real_df.index))
 
-# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
-temp_list = []
-pair = {}
-tri_posx_list = []
-tri_posy_list = []
-# for row in real_df.itertuples():
-for row in real_df.iterrows():
+# print(real_df.head(5))
+# # เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
+# temp_list = []
+# pair = {}
+# tri_posx_list = []
+# tri_posy_list = []
+# # for row in real_df.itertuples():
+# for row in real_df.iterrows():
 
-    # print(int(row[1][5]))
-    # print(row[1].index[0])
-    pair = {
-        row[1].index[0]: row[1][0],
-        row[1].index[1]: row[1][1],
-        row[1].index[2]: row[1][2],
-        row[1].index[3]: row[1][3],
-        row[1].index[4]: row[1][4],
-        row[1].index[5]: row[1][5],
-    }
-    # print(pair)
-    key_list = list(pair.keys())
-    val_list = list(pair.values())
-    # print(val_list)
-    # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
-    temp_list.extend((int(row[1][0]), int(row[1][1]), int(
-        row[1][2]), int(row[1][3]), int(row[1][4]), int(row[1][5]),))
+#     # print(int(row[1][5]))
+#     # print(row[1].index[0])
+#     pair = {
+#         row[1].index[0]: row[1][0],
+#         row[1].index[1]: row[1][1],
+#         row[1].index[2]: row[1][2],
+#         row[1].index[3]: row[1][3],
+#         row[1].index[4]: row[1][4],
+#         row[1].index[5]: row[1][5],
+#     }
+#     # print(pair)
+#     key_list = list(pair.keys())
+#     val_list = list(pair.values())
+#     # print(val_list)
+#     # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
+#     temp_list.extend((int(row[1][0]), int(row[1][1]), int(
+#         row[1][2]), int(row[1][3]), int(row[1][4]), int(row[1][5]),))
 
-    temp_list.sort()
-    temp_list.reverse()
-    # print(temp_list)
-    rssi1 = temp_list[0]
-    rssi2 = temp_list[1]
-    rssi3 = temp_list[2]
-    # a = pair[]
-    b_first = key_list[val_list.index(str(rssi1))]
-    b_second = key_list[val_list.index(str(rssi2))]
-    b_third = key_list[val_list.index(str(rssi3))]
+#     temp_list.sort()
+#     temp_list.reverse()
+#     # print(temp_list)
+#     rssi1 = temp_list[0]
+#     rssi2 = temp_list[1]
+#     rssi3 = temp_list[2]
+#     # a = pair[]
+#     b_first = key_list[val_list.index(str(rssi1))]
+#     b_second = key_list[val_list.index(str(rssi2))]
+#     b_third = key_list[val_list.index(str(rssi3))]
 
-    result = trilateration.calculate(
-        rssi1, rssi2, rssi3, b_first, b_second, b_third)
-    x, y = result
-    # print(x)
-    # print(y)
-    tri_posx_list.append(x)
-    tri_posy_list.append(y)
-    temp_list = []
-    # pair = {}
-    # print(b_first)
-    # print(b_second)
-    # print(b_third)
-tri_df = pd.DataFrame()
-tri_df['PosX'] = tri_posx_list
-tri_df['PosY'] = tri_posy_list
-tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
-tri_df = tri_df.dropna()
+#     result = trilateration.calculate(
+#         rssi1, rssi2, rssi3, b_first, b_second, b_third)
+#     x, y = result
+#     # print(x)
+#     # print(y)
+#     tri_posx_list.append(x)
+#     tri_posy_list.append(y)
+#     temp_list = []
+#     # pair = {}
+#     # print(b_first)
+#     # print(b_second)
+#     # print(b_third)
+# tri_df = pd.DataFrame()
+# tri_df['PosX'] = tri_posx_list
+# tri_df['PosY'] = tri_posy_list
+# tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
+# tri_df = tri_df.dropna()
 # print(tri_df.head(10))
 # ###################################################################
 # print(posx_list)
-## real_df['PosX'] = posx_list
-## real_df['PosY'] = posy_list
-## real_df = real_df.dropna()
-## real_df.index = pd.RangeIndex(len(real_df.index))
+# real_df['PosX'] = posx_list
+# real_df['PosY'] = posy_list
+# real_df = real_df.dropna()
+# real_df.index = pd.RangeIndex(len(real_df.index))
 
 real_df['B1'] = pd.to_numeric(real_df['B1'])
 real_df['B2'] = pd.to_numeric(real_df['B2'])
@@ -224,7 +229,7 @@ real_df['B5'] = pd.to_numeric(real_df['B5'])
 real_df['B6'] = pd.to_numeric(real_df['B6'])
 real_df['PosX'] = pd.to_numeric(real_df['PosX'])
 real_df['PosY'] = pd.to_numeric(real_df['PosY'])
-print(len(real_df))
+# print(len(real_df))
 # print(real_df.head(20))
 ##############################
 # min_max_scaler = preprocessing.MinMaxScaler()
@@ -236,10 +241,10 @@ print(len(real_df))
 
 ##############################
 # นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
-# real_df = pd.read_csv('Dataset/testX12.csv')
-# X = real_df[['BLE1', 'BLE2', 'BLE3', 'BLE4']]
+
 X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
 y = real_df[['PosX', 'PosY']]
+print(X.head(10))
 # X = df_normalized[[0, 1, 2, 3, 4, 5]]
 # y = df_normalized[[6, 7]]
 # print(y['PosX'])
@@ -252,8 +257,10 @@ X_train, X_test, Y_train, Y_test = train_test_split(
 model = Sequential()
 # add layer ให้โมเดล
 # input dimension = 6 เพราะมี 6 feature (B1-6)
-model.add(Dense(100, input_dim=6, activation='relu'))
-model.add(Dense(100, activation='relu'))
+model.add(Dense(12, input_dim=6, activation='relu'))
+model.add(Dense(12, activation='relu'))
+model.add(Dense(12, activation='relu'))
+# model.add(Dense(24, activation='relu'))
 model.add(Dense(2, activation='linear'))
 # model.add(Dense(2))
 
@@ -261,8 +268,9 @@ model.compile(loss='mse',
               optimizer='rmsprop', metrics=['accuracy'])
 
 model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=350, batch_size=32)
+    X_test, Y_test), epochs=350, batch_size=32, verbose=0)
 
+# ลองกับ Test Set
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
 
@@ -330,7 +338,7 @@ predictions_value_df = predictions_value_df.drop(['Predict'], axis=1)
 
 pd.set_option("display.max_rows", None)
 print(len(predictions_value_df))
-print(predictions_value_df.head(100))
+print(predictions_value_df.head(10))
 
 # print(mean_squared_error(
 #     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
@@ -349,5 +357,24 @@ print("MAE-PosY-Model %f" % (mean_absolute_error(
 
 # print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
 #     predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
+print("S.D. of each column:")
+print(predictions_value_df[['TestPredPosX', 'TestPredPosY']].std(axis=0))
 
-print(predictions_value_df.std(axis=0))
+
+model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
+tfjs.converters.save_keras_model(
+    model, "D:\Work\Project\Github\Low-Power-IPS-Web-App\model")
+
+# model_load = keras.models.load_model('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
+# test_predictions_new = model_load.predict(X_test)
+# print(test_predictions_new)
+
+# layers = [[24, 24], [12, 12, 12]]
+# activations = ['relu', 'linear']
+# param_grid = dict(layers=layers, activation=activations,
+#                   batch_size=[16, 32], epochs=[350])
+# grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring='accuracy')
+# grid_search = grid.fit(X_train, Y_train)
+# print("Best score: %0.3f" % grid_search.best_score_)
+# print(grid_search.best_estimator_)
+# print('best prarams:', grid.best_params_)

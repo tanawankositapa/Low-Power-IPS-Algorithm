@@ -1,3 +1,5 @@
+import math
+from re import sub
 from sklearn.model_selection import GridSearchCV
 from tensorflow import keras
 import pandas as pd
@@ -336,6 +338,16 @@ predictions_value_df['TestPredPosY'] = predictions_value_df['TestPredPosY'].asty
 #             data=predictions_value_df, color="g")
 predictions_value_df = predictions_value_df.drop(['Predict'], axis=1)
 
+
+subtractionResultsX = abs(
+    predictions_value_df['TestTruePosX'] - predictions_value_df['TestPredPosX'])
+subtractionResultsY = abs(
+    predictions_value_df['TestTruePosY'] - predictions_value_df['TestPredPosY'])
+# print(subtractionResultsX.head())
+predictions_value_df.insert(loc=4, column='ErrorX', value=subtractionResultsX)
+predictions_value_df.insert(loc=5, column='ErrorY', value=subtractionResultsY)
+
+
 pd.set_option("display.max_rows", None)
 print(len(predictions_value_df))
 print(predictions_value_df.head(10))
@@ -357,8 +369,8 @@ print("MAE-PosY-Model %f" % (mean_absolute_error(
 
 # print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
 #     predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
-print("S.D. of each column:")
-print(predictions_value_df[['TestPredPosX', 'TestPredPosY']].std(axis=0))
+print("S.D. of error:")
+print(predictions_value_df[['ErrorX', 'ErrorY']].std(axis=0))
 
 
 model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')

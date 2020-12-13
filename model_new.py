@@ -1,30 +1,26 @@
-import math
-from re import sub
 # from sklearn.model_selection import GridSearchCV
-from tensorflow import keras
+from numpy.lib.type_check import real
 import pandas as pd
 import seaborn as sns
 import numpy as np
-
-from numpy import loadtxt
-
+from matplotlib import pyplot as plt
+from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-
 from matplotlib import pyplot
-
-import csv
-
 from tensorflow.python.keras import activations
+import csv
 import trilateration
-
 from sklearn import preprocessing
 import tensorflowjs as tfjs
+# from helper import plot_model, predict_classes, visualize_errors
+from plot_model import plot_model
+# สร้าง dataframe
 raw_df = pd.DataFrame()
 
-# แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
+###### แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
 with open('Dataset/dataset-fingerprint.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
@@ -32,13 +28,14 @@ with open('Dataset/dataset-fingerprint.csv', 'r') as csvfile:
         row = [''.join(row)]
         raw_df = raw_df.append(row)
 
-
+###### extract mac และ rssi ออกมาจาก csv
 # ตั้งชื่อให้ column 0
 raw_df.columns = ['Raw']
 checklist = []
 checklist2 = []
 posx_list = []
 posy_list = []
+
 for row in raw_df.itertuples():
     mac = row.Raw.split(" ")
     # print(mac[11])
@@ -71,7 +68,7 @@ raw_df.drop(columns='Raw', inplace=True)
 # print(raw_df.head(20))
 
 
-# กรอง mac address ของ beacon อื่นออก และตรวจสอบว่าในการรับข้อมูลมาแต่ละครั้ง มี beacon ตัวไหนหายไป
+###### กรอง mac address ของ beacon อื่นออก และตรวจสอบว่าในการรับข้อมูลมาแต่ละครั้ง มี beacon ตัวไหนหายไป
 list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
 indicator_list = [0, 0, 0, 0, 0, 0]
 len_counting = 0
@@ -159,24 +156,28 @@ real_df['B6'] = list_B6
 real_df['PosX'] = posx_list
 real_df['PosY'] = posy_list
 # real_df = real_df.dropna()
-print(real_df.head(200))
+# print(real_df.head(200))
+# nan_df = real_df[real_df["B1"].isnull()]
+# # nan_df.insert(loc=0, column="B1", value=real_df[real_df["B1"].isnull()])
+# nan_df = pd.concat(
+#     [real_df[real_df["B2"].isnull()], real_df[real_df["B3"].isnull()], real_df[real_df["B4"].isnull()]], axis=1)
+# print(nan_df.head(10))
+# fill missing value with last valid value
 real_df = real_df.fillna(method="ffill")
 real_df[real_df['PosX']==""] = np.NaN
 real_df[real_df['PosY']==""] = np.NaN
 real_df = real_df.fillna(method="ffill")
-print(real_df.isna().sum())
-print(real_df.head(200))
+# print(real_df.isna().sum())
+# print(real_df.head(200))
 real_df.index = pd.RangeIndex(len(real_df.index))
 
-# print(real_df.head(5))
-# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
+###### เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
 temp_list = []
 pair = {}
 tri_posx_list = []
 tri_posy_list = []
 # for row in real_df.itertuples():
 for row in real_df.iterrows():
-
     # print(int(row[1][5]))
     # print(row[1].index[0])
     pair = {
@@ -190,28 +191,6 @@ for row in real_df.iterrows():
     # print(pair)
     # print(type(pair))
     sorted_pair = sorted(pair.items(), key=lambda kv: kv[1])
-    # print(sorted_pair)
-    # print(sorted_pair[0][0])
-    # print(sorted_pair[0][1])
-    # print(sorted_pair[1][0])
-    # print(sorted_pair[1][1]) #str
-    # key_list = list(pair.keys())
-    # val_list = list(pair.values())
-    # # print(val_list)
-    # # temp_list.extend((int(row.B1),int(row.B2),int(row.B3),int(row.B4),int(row.B5),int(row.B6)))
-    # temp_list.extend((int(row[1][0]), int(row[1][1]), int(
-    #     row[1][2]), int(row[1][3]), int(row[1][4]), int(row[1][5]),))
-
-    # temp_list.sort()
-    # temp_list.reverse()
-    # print(temp_list)
-    # rssi1 = temp_list[0] # -55
-    # rssi2 = temp_list[1] # -55
-    # rssi3 = temp_list[2] # -60
-    # # a = pair[]
-    # b_first = key_list[val_list.index(str(rssi1))]
-    # b_second = key_list[val_list.index(str(rssi2))]
-    # b_third = key_list[val_list.index(str(rssi3))]
 
     # New
     rssi1 = int(sorted_pair[0][1])  # -55
@@ -243,14 +222,9 @@ tri_df['PosX'] = tri_posx_list
 tri_df['PosY'] = tri_posy_list
 tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
 tri_df = tri_df.dropna()
-print(tri_df.head(10))
-# ###################################################################
-# print(posx_list)
-# real_df['PosX'] = posx_list
-# real_df['PosY'] = posy_list
-# real_df = real_df.dropna()
-# real_df.index = pd.RangeIndex(len(real_df.index))
+# print(tri_df.head(10))
 
+###### แปลง string เป็น float
 real_df['B1'] = pd.to_numeric(real_df['B1'])
 real_df['B2'] = pd.to_numeric(real_df['B2'])
 real_df['B3'] = pd.to_numeric(real_df['B3'])
@@ -259,19 +233,20 @@ real_df['B5'] = pd.to_numeric(real_df['B5'])
 real_df['B6'] = pd.to_numeric(real_df['B6'])
 real_df['PosX'] = pd.to_numeric(real_df['PosX'])
 real_df['PosY'] = pd.to_numeric(real_df['PosY'])
+# print("Correlation: ")
+# print(real_df.corr())
 # print(len(real_df))
 # print(real_df.head(20))
-##############################
+
+###### normalize data (unuse now)
 # min_max_scaler = preprocessing.MinMaxScaler()
 # real_df_scaled = min_max_scaler.fit_transform(real_df)
 # df_normalized = pd.DataFrame(real_df_scaled)
 # print(df_normalized.head(10))
 
-#############################
 
-##############################
-# นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
 
+###### นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
 X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
 # X = real_df[['B1', 'B2', 'B3', 'B4', 'B5']]
 # X = real_df[['B1', 'B2', 'B4', 'B5']]
@@ -279,7 +254,7 @@ X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
 # X = real_df[['B5', 'B6']]
 # X = real_df[['B6']]
 y = real_df[['PosX', 'PosY']]
-print(X.head(10))
+# print(X.head(10))
 # X = df_normalized[[0, 1, 2, 3, 4, 5]]
 # y = df_normalized[[6, 7]]
 # print(y['PosX'])
@@ -287,29 +262,47 @@ print(X.head(10))
 
 
 X_train, X_test, Y_train, Y_test = train_test_split(
-    X, y, test_size=0.3, random_state=101)
+    X, y, test_size=0.2, random_state=101)
 
 model = Sequential()
 # add layer ให้โมเดล
 # input dimension = 6 เพราะมี 6 feature (B1-6)
-model.add(Dense(24, input_dim=6, activation='relu'))
-model.add(Dense(24, activation='relu'))
+model.add(Dense(24, input_dim=6, activation='elu'))
+model.add(Dense(24, activation='elu'))
+model.add(Dense(24, activation='elu'))
 # model.add(Dense(12, activation='relu'))
 # model.add(Dense(24, activation='relu'))
 model.add(Dense(2, activation='linear'))
 # model.add(Dense(2))
-
+model.summary()
 model.compile(loss='mse',
-              optimizer='rmsprop', metrics=['accuracy'])
+              optimizer='adam', metrics=['accuracy'])
 
-model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=350, batch_size=32, verbose=0)
+history = model.fit(X_train, Y_train, validation_data=(
+    X_test, Y_test), epochs=250, batch_size=32, verbose=1)
 
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.show()
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.show()
 # ลองกับ Test Set
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
 
+###### ประเมิลผล model ด้วยวิธีต่าง ๆ
 
+# print(plot_model(model))
 # print(model.evaluate(X_test, Y_test))
 # print(model.evaluate(X_train, Y_train))
 test_predictions = model.predict(X_test)
@@ -353,30 +346,16 @@ predictions_value_df.reset_index(drop=True, inplace=True)
 new = predictions_value_df.Predict.str.split(" ", n=1, expand=True)
 # print(new)
 predictions_value_df['TestPredPosX'] = new[0]
-
 predictions_value_df['TestPredPosY'] = new[1]
-
-# print(new[0])
-# print(new[1])
-# print(predictions_value_df.head(40))
-
 predictions_value_df['TestPredPosX'] = pd.to_numeric(
     predictions_value_df['TestPredPosX'])
 predictions_value_df['TestPredPosY'] = pd.to_numeric(
     predictions_value_df['TestPredPosY'])
-
 predictions_value_df['TestPredPosX'] = predictions_value_df['TestPredPosX'].astype(
     float)
-
 predictions_value_df['TestPredPosY'] = predictions_value_df['TestPredPosY'].astype(
     float)
-
-# sns.regplot(x='Test True PosX', y='Test Pred PosX', data=predictions_value_df)
-
-# sns.regplot(x='Test True PosY', y='Test Pred PosY',
-#             data=predictions_value_df, color="g")
 predictions_value_df = predictions_value_df.drop(['Predict'], axis=1)
-
 
 subtractionResultsX = (
     predictions_value_df['TestTruePosX'] - predictions_value_df['TestPredPosX'])**2

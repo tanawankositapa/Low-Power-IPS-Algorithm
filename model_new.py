@@ -17,10 +17,11 @@ from sklearn import preprocessing
 import tensorflowjs as tfjs
 # from helper import plot_model, predict_classes, visualize_errors
 from plot_model import plot_model
+import time
 # สร้าง dataframe
 raw_df = pd.DataFrame()
 
-###### แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
+# แบ่งข้อมูลออกเป็น block เพราะต้องการจะตรวขสอบว่าข้อมูลแต่ละชุดที่ได้มามี beacon ตัวไหนที่หายไป
 with open('Dataset/dataset-fingerprint.csv', 'r') as csvfile:
     csvreader = csv.reader(csvfile)
     for row in csvreader:
@@ -28,7 +29,7 @@ with open('Dataset/dataset-fingerprint.csv', 'r') as csvfile:
         row = [''.join(row)]
         raw_df = raw_df.append(row)
 
-###### extract mac และ rssi ออกมาจาก csv
+# extract mac และ rssi ออกมาจาก csv
 # ตั้งชื่อให้ column 0
 raw_df.columns = ['Raw']
 checklist = []
@@ -68,7 +69,7 @@ raw_df.drop(columns='Raw', inplace=True)
 # print(raw_df.head(20))
 
 
-###### กรอง mac address ของ beacon อื่นออก และตรวจสอบว่าในการรับข้อมูลมาแต่ละครั้ง มี beacon ตัวไหนหายไป
+# กรอง mac address ของ beacon อื่นออก และตรวจสอบว่าในการรับข้อมูลมาแต่ละครั้ง มี beacon ตัวไหนหายไป
 list_B1, list_B2, list_B3, list_B4, list_B5, list_B6 = [], [], [], [], [], []
 indicator_list = [0, 0, 0, 0, 0, 0]
 len_counting = 0
@@ -164,14 +165,14 @@ real_df['PosY'] = posy_list
 # print(nan_df.head(10))
 # fill missing value with last valid value
 real_df = real_df.fillna(method="ffill")
-real_df[real_df['PosX']==""] = np.NaN
-real_df[real_df['PosY']==""] = np.NaN
+real_df[real_df['PosX'] == ""] = np.NaN
+real_df[real_df['PosY'] == ""] = np.NaN
 real_df = real_df.fillna(method="ffill")
 # print(real_df.isna().sum())
 # print(real_df.head(200))
 real_df.index = pd.RangeIndex(len(real_df.index))
 
-###### เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
+# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
 temp_list = []
 pair = {}
 tri_posx_list = []
@@ -224,7 +225,7 @@ tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
 tri_df = tri_df.dropna()
 # print(tri_df.head(10))
 
-###### แปลง string เป็น float
+# แปลง string เป็น float
 real_df['B1'] = pd.to_numeric(real_df['B1'])
 real_df['B2'] = pd.to_numeric(real_df['B2'])
 real_df['B3'] = pd.to_numeric(real_df['B3'])
@@ -238,15 +239,14 @@ real_df['PosY'] = pd.to_numeric(real_df['PosY'])
 # print(len(real_df))
 # print(real_df.head(20))
 
-###### normalize data (unuse now)
+# normalize data (unuse now)
 # min_max_scaler = preprocessing.MinMaxScaler()
 # real_df_scaled = min_max_scaler.fit_transform(real_df)
 # df_normalized = pd.DataFrame(real_df_scaled)
 # print(df_normalized.head(10))
 
 
-
-###### นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
+# นำข้อมูล dataset ที่เตรียมไว้แล้ว ไปใช้ในการ train model
 X = real_df[['B1', 'B2', 'B3', 'B4', 'B5', 'B6']]
 # X = real_df[['B1', 'B2', 'B3', 'B4', 'B5']]
 # X = real_df[['B1', 'B2', 'B4', 'B5']]
@@ -267,19 +267,20 @@ X_train, X_test, Y_train, Y_test = train_test_split(
 model = Sequential()
 # add layer ให้โมเดล
 # input dimension = 6 เพราะมี 6 feature (B1-6)
-model.add(Dense(24, input_dim=6, activation='elu'))
-model.add(Dense(24, activation='elu'))
-model.add(Dense(24, activation='elu'))
+model.add(Dense(300, input_dim=6, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
 # model.add(Dense(12, activation='relu'))
 # model.add(Dense(24, activation='relu'))
-model.add(Dense(2, activation='linear'))
+model.add(Dense(2, kernel_initializer='normal', activation='linear'))
 # model.add(Dense(2))
 model.summary()
 model.compile(loss='mse',
               optimizer='adam', metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=250, batch_size=32, verbose=1)
+    X_test, Y_test), epochs=250, batch_size=32, verbose=0)
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -299,8 +300,8 @@ plt.show()
 # ลองกับ Test Set
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
-
-###### ประเมิลผล model ด้วยวิธีต่าง ๆ
+print("Time used: ",time.perf_counter())
+# ประเมิลผล model ด้วยวิธีต่าง ๆ
 
 # print(plot_model(model))
 # print(model.evaluate(X_test, Y_test))
@@ -407,7 +408,8 @@ print(predictions_value_df.head(1000))
 print("Max Euclidian: ", predictions_value_df['Euclidian'].max(axis=0))
 print("Min Euclidian: ", predictions_value_df['Euclidian'].min(axis=0))
 print("Mean of Euclidian: ", predictions_value_df['Euclidian'].mean(axis=0))
-print("Mean of TriEuclidian: ", predictions_value_df['TriEuclidian'].mean(axis=0))
+print("Mean of TriEuclidian: ",
+      predictions_value_df['TriEuclidian'].mean(axis=0))
 
 model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
 tfjs.converters.save_keras_model(

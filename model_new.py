@@ -411,6 +411,47 @@ print("Mean of Euclidian: ", predictions_value_df['Euclidian'].mean(axis=0))
 print("Mean of TriEuclidian: ",
       predictions_value_df['TriEuclidian'].mean(axis=0))
 
+# Count Value
+c1,c2,c3,c4,c5 = 0,0,0,0,0
+for row in predictions_value_df['Euclidian']:
+    if row >= 0.0 and row <= 1.0:
+        c1 +=1
+    if row > 1.0 and row <= 2.0:
+        c2 +=1
+    if row > 2.0 and row <= 3.0:
+        c3 +=1
+    if row > 3.0 and row <= 4.0:
+        c4 +=1
+    if row > 4.0 and row <= 5.0:
+        c5 +=1
+print("C1: ",c1)
+print("C2: ",c2)
+print("C3: ",c3)
+print("C4: ",c4)
+print("C5: ",c5)
+
+
+# Create a sample dataframe with an text index
+# fig = plt.figure()
+# ax = fig.add_axes([0,0,1,1])
+range = ['0-1', '1-2', '2-3', '3-4', '4-5']
+count = [c1,c2,c3,c4,c5]
+
+plt.bar(range, count, color ='maroon',  
+        width = 0.4) 
+plt.title('Quantized Euclidian')
+plt.xlabel('Range')
+plt.ylabel('Count')
+plt.legend(['Range', 'Count'], loc='upper left')
+plt.show()
+
+# ax.bar(range,count)
+# ax.set_xlabel('Range')
+# ax.set_ylabel('Count')
+# ax.legend(labels=['Range', 'Count'])
+# plt.show()
+# predictions_value_df.plot(kind='bar',x=['0-1','1-2','2-3','3-4','4-5'],y='Euclidian')
+# plt.show()
 model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
 tfjs.converters.save_keras_model(
     model, "D:\Work\Project\Github\Low-Power-IPS-Web-App\model")

@@ -280,7 +280,7 @@ model.compile(loss='mse',
               optimizer='adam', metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=250, batch_size=32, verbose=0)
+    X_test, Y_test), epochs=550, batch_size=32, verbose=0)
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -300,7 +300,7 @@ plt.show()
 # ลองกับ Test Set
 _, accuracy = model.evaluate(X_test, Y_test)
 print('Accuracy: %.2f' % (accuracy*100))
-print("Time used: ",time.perf_counter())
+
 # ประเมิลผล model ด้วยวิธีต่าง ๆ
 
 # print(plot_model(model))
@@ -412,54 +412,58 @@ print("Mean of TriEuclidian: ",
       predictions_value_df['TriEuclidian'].mean(axis=0))
 
 # Count Value
-c1,c2,c3,c4,c5 = 0,0,0,0,0
+c1, c2, c3, c4, c5 = 0, 0, 0, 0, 0
 for row in predictions_value_df['Euclidian']:
     if row >= 0.0 and row <= 1.0:
-        c1 +=1
+        c1 += 1
     if row > 1.0 and row <= 2.0:
-        c2 +=1
+        c2 += 1
     if row > 2.0 and row <= 3.0:
-        c3 +=1
+        c3 += 1
     if row > 3.0 and row <= 4.0:
-        c4 +=1
+        c4 += 1
     if row > 4.0 and row <= 5.0:
-        c5 +=1
-print("C1: ",c1)
-print("C2: ",c2)
-print("C3: ",c3)
-print("C4: ",c4)
-print("C5: ",c5)
+        c5 += 1
+print("C1: ", c1)
+print("C2: ", c2)
+print("C3: ", c3)
+print("C4: ", c4)
+print("C5: ", c5)
 
 
 # Create a sample dataframe with an text index
 # fig = plt.figure()
 # ax = fig.add_axes([0,0,1,1])
 range = ['0-1', '1-2', '2-3', '3-4', '4-5']
-count = [c1,c2,c3,c4,c5]
+count = [c1, c2, c3, c4, c5]
 
-plt.bar(range, count, color ='maroon',  
-        width = 0.4) 
+plt.bar(range, count, color='maroon',
+        width=0.4)
 plt.title('Quantized Euclidian')
 plt.xlabel('Range')
 plt.ylabel('Count')
 plt.legend(['Range', 'Count'], loc='upper left')
 plt.show()
 
-# ax.bar(range,count)
-# ax.set_xlabel('Range')
-# ax.set_ylabel('Count')
-# ax.legend(labels=['Range', 'Count'])
-# plt.show()
-# predictions_value_df.plot(kind='bar',x=['0-1','1-2','2-3','3-4','4-5'],y='Euclidian')
-# plt.show()
+time_before = time.perf_counter()
+
 model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
 tfjs.converters.save_keras_model(
     model, "D:\Work\Project\Github\Low-Power-IPS-Web-App\model")
 
-# model_load = keras.models.load_model('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
-# test_predictions_new = model_load.predict(X_test)
-# print(test_predictions_new)
+items = [
+        [-48, -61, -65, -67, -68, -82],
+        [-48, -67, -53, -63, -72, -71],
+        [-51, -70, -65, -83, -69, -89]
+]
+model_load = keras.models.load_model(
+    'D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
+test_predictions_new = model_load.predict(items)
+print(test_predictions_new)
 
+time_after = time.perf_counter()
+time_elapsed = time_after-time_before
+print("Time used for prediction is: ",time_elapsed)
 # layers = [[24, 24], [12, 12, 12]]
 # activations = ['relu', 'linear']
 # param_grid = dict(layers=layers, activation=activations,

@@ -277,17 +277,30 @@ model.add(Dense(2, kernel_initializer='normal', activation='linear'))
 # model.add(Dense(2))
 model.summary()
 model.compile(loss='mse',
-              optimizer='adam', metrics=['accuracy'])
+              optimizer='adam', metrics=['mse', 'mae'])
 
 history = model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=550, batch_size=32, verbose=0)
+    X_test, Y_test), epochs=2000, batch_size=32, verbose=0)
 
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
+
+# plt.plot(history.history['mean_absolute_percentage_error'])
+# ply.plot(history.history['cosine_proximity'])
+# plt.plot(history.history['mae'])
+# plt.plot(history.history['val_mae'])
+plt.plot(history.history['mae'])
+plt.plot(history.history['val_mae'])
+plt.title('Model MAE')
+plt.ylabel('MAE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+plt.plot(history.history['mse'])
+plt.plot(history.history['val_mse'])
+plt.title('Model MSE')
+plt.ylabel('MSE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
 plt.show()
 
 plt.plot(history.history['loss'])
@@ -298,8 +311,12 @@ plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 plt.show()
 # ลองกับ Test Set
-_, accuracy = model.evaluate(X_test, Y_test)
-print('Accuracy: %.2f' % (accuracy*100))
+_, mse, mae = model.evaluate(X_test, Y_test)
+print('Mse: ', mse)
+print('Mae: ', mae)
+
+# _, accuracy = model.evaluate(X_test, Y_test)
+# print('Accuracy: %.2f' % (accuracy*100))
 
 # ประเมิลผล model ด้วยวิธีต่าง ๆ
 
@@ -386,25 +403,25 @@ print(len(predictions_value_df))
 # print(predictions_value_df['TestTruePosY'].dtypes)
 print(predictions_value_df.head(1000))
 
-# print(mean_squared_error(
-#     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
+print(mean_squared_error(
+    predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX']))
 
-# print(mean_squared_error(
-#     predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
+print(mean_squared_error(
+    predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY']))
 
-# print("MAE-PosX-Model: %f" % (mean_absolute_error(
-#     predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX'])))
+print("MAE-PosX-Model: %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosX'], predictions_value_df['TestPredPosX'])))
 
-# print("MAE-PosY-Model %f" % (mean_absolute_error(
-#     predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY'])))
+print("MAE-PosY-Model %f" % (mean_absolute_error(
+    predictions_value_df['TestTruePosY'], predictions_value_df['TestPredPosY'])))
 
 # print("MAE-PosX-Trilateration: %f" % (mean_absolute_error(
 #     predictions_value_df['TestTruePosX'], predictions_value_df['TriPosX'])))
 
 # print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
 #     predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
-# print("S.D. of error:")
-# print(predictions_value_df[['ErrorX', 'ErrorY']].std(axis=0))
+print("S.D. of error:")
+print(predictions_value_df[['ErrorX', 'ErrorY']].std(axis=0))
 print("Max Euclidian: ", predictions_value_df['Euclidian'].max(axis=0))
 print("Min Euclidian: ", predictions_value_df['Euclidian'].min(axis=0))
 print("Mean of Euclidian: ", predictions_value_df['Euclidian'].mean(axis=0))
@@ -412,9 +429,12 @@ print("Mean of TriEuclidian: ",
       predictions_value_df['TriEuclidian'].mean(axis=0))
 
 # Count Value
+c0 = 0
 c1, c2, c3, c4, c5 = 0, 0, 0, 0, 0
 for row in predictions_value_df['Euclidian']:
-    if row >= 0.0 and row <= 1.0:
+    if row >= 0.0 and row <= 0.5:
+        c0 += 1
+    if row > 0.5 and row <= 1.0:
         c1 += 1
     if row > 1.0 and row <= 2.0:
         c2 += 1
@@ -424,6 +444,7 @@ for row in predictions_value_df['Euclidian']:
         c4 += 1
     if row > 4.0 and row <= 5.0:
         c5 += 1
+print("C0: ", c0)
 print("C1: ", c1)
 print("C2: ", c2)
 print("C3: ", c3)
@@ -434,11 +455,11 @@ print("C5: ", c5)
 # Create a sample dataframe with an text index
 # fig = plt.figure()
 # ax = fig.add_axes([0,0,1,1])
-range = ['0-1', '1-2', '2-3', '3-4', '4-5']
-count = [c1, c2, c3, c4, c5]
+range = ['0-0.5', '0.5-1', '1-2', '2-3', '3-4', '4-5']
+count = [c0 ,c1, c2, c3, c4, c5]
 
 plt.bar(range, count, color='maroon',
-        width=0.4)
+        width=0.3)
 plt.title('Quantized Euclidian')
 plt.xlabel('Range')
 plt.ylabel('Count')
@@ -463,7 +484,7 @@ print(test_predictions_new)
 
 time_after = time.perf_counter()
 time_elapsed = time_after-time_before
-print("Time used for prediction is: ",time_elapsed)
+print("Time used for prediction is: ", time_elapsed)
 # layers = [[24, 24], [12, 12, 12]]
 # activations = ['relu', 'linear']
 # param_grid = dict(layers=layers, activation=activations,

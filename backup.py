@@ -7,16 +7,12 @@ from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.layers import Dropout
-# from tensorflow.keras import layers
-# from tensorflow.keras import regularizers
-from keras.regularizers import l2
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from matplotlib import pyplot
 from tensorflow.python.keras import activations
 import csv
-import trilateration
+# import trilateration
 from sklearn import preprocessing
 import tensorflowjs as tfjs
 # from helper import plot_model, predict_classes, visualize_errors
@@ -222,102 +218,98 @@ real_df['PosY'] = posy_list
 # # nan_df = pd.concat(
 # #     [real_df[real_df["B2"].isnull()], real_df[real_df["B3"].isnull()], real_df[real_df["B4"].isnull()]], axis=1)
 # # print(nan_df.head(10))
-# fill missing value with last valid value
-real_df = real_df.fillna(method="ffill")
-real_df[real_df['PosX'] == ""] = np.NaN
-real_df[real_df['PosY'] == ""] = np.NaN
-real_df = real_df.fillna(method="ffill")
-print(real_df.isna().sum())
-print(real_df.head(200))
+# # fill missing value with last valid value
+# real_df = real_df.fillna(method="ffill")
+# real_df[real_df['PosX'] == ""] = np.NaN
+# real_df[real_df['PosY'] == ""] = np.NaN
+# real_df = real_df.fillna(method="ffill")
+# # print(real_df.isna().sum())
+# # print(real_df.head(200))
 # real_df.index = pd.RangeIndex(len(real_df.index))
 
-# เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
-temp_list = []
-pair = {}
-tri_posx_list = []
-tri_posy_list = []
-# for row in real_df.itertuples():
-for row in real_df.iterrows():
-    # print(int(row[1][5]))
-    # print(row[1].index[0])
-    pair = {
-        row[1].index[0]: row[1][0],
-        row[1].index[1]: row[1][1],
-        row[1].index[2]: row[1][2],
-        row[1].index[3]: row[1][3],
-        row[1].index[4]: row[1][4],
-        row[1].index[5]: row[1][5],
-    }
+# # เลือก rssi 3 ค่าที่เข้มที่สุด นำไปใช้ใน trilateration และ เอาตำแหน่งที่ได้ ไปใส่ใน real_df
+# temp_list = []
+# pair = {}
+# tri_posx_list = []
+# tri_posy_list = []
+# # for row in real_df.itertuples():
+# for row in real_df.iterrows():
+#     # print(int(row[1][5]))
+#     # print(row[1].index[0])
+#     pair = {
+#         row[1].index[0]: row[1][0],
+#         row[1].index[1]: row[1][1],
+#         row[1].index[2]: row[1][2],
+#         row[1].index[3]: row[1][3],
+#         row[1].index[4]: row[1][4],
+#         row[1].index[5]: row[1][5],
+#     }
 
-    # print(pair)
-    # print(type(pair))
-    sorted_pair = sorted(pair.items(), key=lambda kv: kv[1])
+#     print(pair)
+#     # print(type(pair))
+#     sorted_pair = sorted(pair.items(), key=lambda kv: kv[1])
 
-    # New
-    rssi1 = int(sorted_pair[0][1])  # -55
-    rssi2 = int(sorted_pair[1][1])  # -55
-    rssi3 = int(sorted_pair[2][1])  # -60
-    # print(rssi1)
-    # print(type(rssi1))
-    # a = pair[]
-    b_first = sorted_pair[0][0]
-    b_second = sorted_pair[1][0]
-    b_third = sorted_pair[2][0]
-    # print(b_first)
-    # print(b_second)
-    # print(b_third)
-    result = trilateration.calculate(
-        rssi1, rssi2, rssi3, b_first, b_second, b_third)
-    x, y = result
-    # print(x)
-    # print(y)
-    tri_posx_list.append(x)
-    tri_posy_list.append(y)
-    temp_list = []
-    # pair = {}
-    # print(b_first)
-    # print(b_second)
-    # print(b_third)
-tri_df = pd.DataFrame()
-tri_df['PosX'] = tri_posx_list
-tri_df['PosY'] = tri_posy_list
-tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
-tri_df = tri_df.dropna()
-# print(tri_df.head(10))
+#     # New
+#     rssi1 = int(sorted_pair[0][1])  # -55
+#     rssi2 = int(sorted_pair[1][1])  # -55
+#     rssi3 = int(sorted_pair[2][1])  # -60
+#     # print(rssi1)
+#     # print(type(rssi1))
+#     # a = pair[]
+#     b_first = sorted_pair[0][0]
+#     b_second = sorted_pair[1][0]
+#     b_third = sorted_pair[2][0]
+#     # print(b_first)
+#     # print(b_second)
+#     # print(b_third)
+#     result = trilateration.calculate(
+#         rssi1, rssi2, rssi3, b_first, b_second, b_third)
+#     x, y = result
+#     # print(x)
+#     # print(y)
+#     tri_posx_list.append(x)
+#     tri_posy_list.append(y)
+#     temp_list = []
+#     # pair = {}
+#     # print(b_first)
+#     # print(b_second)
+#     # print(b_third)
+# tri_df = pd.DataFrame()
+# tri_df['PosX'] = tri_posx_list
+# tri_df['PosY'] = tri_posy_list
+# tri_df = tri_df.replace([np.inf, -np.inf], np.nan)
+# tri_df = tri_df.dropna()
+# # print(tri_df.head(10))
 
 # แปลง string เป็น float
 # print(real_df.head())
 # dataTypeSeries = real_df.dtypes
 # print(dataTypeSeries)
-real_df = real_df.dropna()
-# print(real_df['B4'].isna().sum())
-# real_df['B1'] = real_df.B1.astype(int)
-# real_df['B2'] = real_df.B2.astype(int)
-# real_df['B3'] = real_df.B3.astype(int)
-# real_df['B4'] = real_df.B4.astype(int)
-# real_df['PosX'] = real_df.PosX.astype(float)
-# real_df['PosY'] = real_df.PosY.astype(int)
-
-real_df['B1'] = pd.to_numeric(real_df['B1'])
-real_df['B2'] = pd.to_numeric(real_df['B2'])
-real_df['B3'] = pd.to_numeric(real_df['B3'])
-real_df['B4'] = pd.to_numeric(real_df['B4'])
+real_df['B1'] = real_df.B1.astype(float)
+real_df['B2'] = real_df.B2.astype(float)
+real_df['B3'] = real_df.B3.astype(float)
+real_df['B4'] = real_df.B4.astype(float)
+real_df['PosX'] = real_df.PosX.astype(float)
+real_df['PosY'] = real_df.PosY.astype(float)
+# dataTypeSeries = real_df.dtypes
+# print(dataTypeSeries)
+# real_df['B1'] = pd.to_numeric(real_df['B1'])
+# real_df['B2'] = pd.to_numeric(real_df['B2'])
+# real_df['B3'] = pd.to_numeric(real_df['B3'])
+# real_df['B4'] = pd.to_numeric(real_df['B4'])
 # real_df['B5'] = pd.to_numeric(real_df['B5'])
 # real_df['B6'] = pd.to_numeric(real_df['B6'])
-real_df['PosX'] = pd.to_numeric(real_df['PosX'])
-real_df['PosY'] = pd.to_numeric(real_df['PosY'])
-print(real_df.head(20))
-dataTypeSeries = real_df.dtypes
-print(dataTypeSeries)
+# real_df['PosX'] = pd.to_numeric(real_df['PosX'])
+# real_df['PosY'] = pd.to_numeric(real_df['PosY'])
 # print(real_df.head())
 # print("Correlation: ")
 # print(real_df.corr())
 # print(len(real_df))
 # print(real_df.head(20))
 
-# # normalize data (unuse now)
+# normalize data (unuse now)
 # min_max_scaler = preprocessing.MinMaxScaler()
-# real_df_scaled = min_max_scaler.fit_transform(real_df[['B1','B2','B3','B4']])
+# real_df_scaled = min_max_scaler.fit_transform(real_df)
 # df_normalized = pd.DataFrame(real_df_scaled)
 # print(df_normalized.head(10))
 
@@ -350,31 +342,49 @@ X_train, X_test, Y_train, Y_test = train_test_split(
 model = Sequential()
 # add layer ให้โมเดล
 # input dimension = 6 เพราะมี 6 feature (B1-6)
-model.add(Dense(30, input_dim=4, kernel_initializer='normal', activation='elu'))
-# model.add(Dropout(0.3))
-model.add(Dense(30, kernel_initializer='normal', activation='elu'))
-# model.add(Dropout(0.3))
-model.add(Dense(30, kernel_initializer='normal', activation='elu'))
-# model.add(Dropout(0.3))
-model.add(Dense(30, kernel_initializer='normal', activation='elu'))
-# model.add(Dropout(0.3))
+model.add(Dense(300, input_dim=4, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
+model.add(Dense(300, kernel_initializer='normal', activation='elu'))
 # model.add(Dense(12, activation='relu'))
 # model.add(Dense(24, activation='relu'))
 model.add(Dense(2, kernel_initializer='normal', activation='linear'))
 # model.add(Dense(2))
 model.summary()
 model.compile(loss='mse',
-              optimizer='adam', metrics=['mse','mae'])
+              optimizer='adam', metrics=['mse', 'mae'])
 
 history = model.fit(X_train, Y_train, validation_data=(
-    X_test, Y_test), epochs=500, batch_size=128, verbose=1)
+    X_test, Y_test), epochs=2000, batch_size=32, verbose=1)
 
 
 # # plt.plot(history.history['mean_absolute_percentage_error'])
 # # ply.plot(history.history['cosine_proximity'])
 # # plt.plot(history.history['mae'])
 # # plt.plot(history.history['val_mae'])
+plt.plot(history.history['mae'])
+plt.plot(history.history['val_mae'])
+plt.title('Model MAE')
+plt.ylabel('MAE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
+plt.plot(history.history['mse'])
+plt.plot(history.history['val_mse'])
+plt.title('Model MSE')
+plt.ylabel('MSE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.show()
 # ลองกับ Test Set
 _, mse, mae = model.evaluate(X_test, Y_test)
 print('Mse: ', mse)
@@ -399,17 +409,17 @@ predictions_value_df.reset_index(drop=True, inplace=True)
 test_predictions.reset_index(drop=True, inplace=True)
 
 
-predictions_value_df = pd.concat(
-    [predictions_value_df, test_predictions, tri_df], axis=1)
-predictions_value_df.columns = ['TestTruePosX',
-                                'TestTruePosY', 'Predict', 'TriPosX', 'TriPosY']
-# # งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
-predictions_value_df = predictions_value_df.dropna()
-
 # predictions_value_df = pd.concat(
-#     [predictions_value_df, test_predictions], axis=1)
+#     [predictions_value_df, test_predictions, tri_df], axis=1)
 # predictions_value_df.columns = ['TestTruePosX',
-#                                 'TestTruePosY', 'Predict']
+#                                 'TestTruePosY', 'Predict', 'TriPosX', 'TriPosY']
+# # # งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
+# predictions_value_df = predictions_value_df.dropna()
+
+predictions_value_df = pd.concat(
+    [predictions_value_df, test_predictions], axis=1)
+predictions_value_df.columns = ['TestTruePosX',
+                                'TestTruePosY', 'Predict']
 # # งงว่าทำไมมันมี NaN ใน TriPos ได้ไง
 # predictions_value_df = predictions_value_df.dropna()
 
@@ -453,12 +463,12 @@ subtractionResultsY = (
 
 addResult = np.sqrt(subtractionResultsX+subtractionResultsY)
 
-triSubtractionResultsX = (
-    predictions_value_df['TestTruePosX'] - predictions_value_df['TriPosX'])**2
-triSubtractionResultsY = (
-    predictions_value_df['TestTruePosY'] - predictions_value_df['TriPosY'])**2
+# triSubtractionResultsX = (
+#     predictions_value_df['TestTruePosX'] - predictions_value_df['TriPosX'])**2
+# triSubtractionResultsY = (
+#     predictions_value_df['TestTruePosY'] - predictions_value_df['TriPosY'])**2
 
-triAddResult = np.sqrt(triSubtractionResultsX+triSubtractionResultsY)
+# triAddResult = np.sqrt(triSubtractionResultsX+triSubtractionResultsY)
 
 # errorResult = math.sqrt((predictions_value_df['TestTruePosX']-predictions_value_df['TestPredPosX'])**2 + (predictions_value_df['TestTruePosY'] - predictions_value_df['TestPredPosY'])**2)
 # print(subtractionResultsX.head())
@@ -467,7 +477,7 @@ predictions_value_df.insert(loc=5, column='ErrorY', value=subtractionResultsY)
 # predictions_value_df.insert(loc=6, column='Error', value=errorResult)
 predictions_value_df.insert(loc=6, column='Euclidian', value=addResult)
 
-predictions_value_df.insert(loc=7, column='TriEuclidian', value=triAddResult)
+# predictions_value_df.insert(loc=7, column='TriEuclidian', value=triAddResult)
 pd.set_option("display.max_rows", None)
 print("Number of predicted data: ", len(predictions_value_df))
 # print(predictions_value_df['TestTruePosX'].dtypes)
@@ -491,57 +501,37 @@ print("MAE-PosY-Model %f" % (mean_absolute_error(
 
 # print("MAE-PosY-Trilateration: %f" % (mean_absolute_error(
 #     predictions_value_df['TestTruePosY'], predictions_value_df['TriPosY'])))
-print("S.D. of Euclidian:")
-print(predictions_value_df['Euclidian'].std(axis=0))
+print("S.D. of error:")
+print(predictions_value_df[['ErrorX', 'ErrorY']].std(axis=0))
 print("Max Euclidian: ", predictions_value_df['Euclidian'].max(axis=0))
 print("Min Euclidian: ", predictions_value_df['Euclidian'].min(axis=0))
 print("Mean of Euclidian: ", predictions_value_df['Euclidian'].mean(axis=0))
-print("Mean of TriEuclidian: ",
-      predictions_value_df['TriEuclidian'].mean(axis=0))
+# print("Mean of TriEuclidian: ",
+#       predictions_value_df['TriEuclidian'].mean(axis=0))
 
 # Count Value
 c0 = 0
 c1, c2, c3, c4, c5, c6, c7, c8, c9 = 0, 0, 0, 0, 0, 0, 0, 0, 0
 for row in predictions_value_df['Euclidian']:
-    # if row >= 0.0 and row <= 0.5:
-    #     c0 += 1
-    # if row > 0.5 and row <= 1.0:
-    #     c1 += 1
-    # if row > 1.0 and row <= 1.5:
-    #     c2 += 1
-    # if row > 1.5 and row <= 2.0:
-    #     c3 += 1
-    # if row > 2.0 and row <= 2.5:
-    #     c4 += 1
-    # if row > 2.5 and row <= 3.0:
-    #     c5 += 1
-    # if row > 3.0 and row <= 3.5:
-    #     c6 += 1
-    # if row > 3.5 and row <= 4.0:
-    #     c7 += 1
-    # if row > 4.0 and row <= 4.5:
-    #     c8 += 1
-    # if row > 4.5 and row <= 5.0:
-    #     c9 += 1
-    if row >= 0.0 and row <= 1.0:
+    if row >= 0.0 and row <= 0.5:
         c0 += 1
-    if row > 1.0 and row <= 2.0:
+    if row > 0.5 and row <= 1.0:
         c1 += 1
-    if row > 2.0 and row <= 3.0:
+    if row > 1.0 and row <= 1.5:
         c2 += 1
-    if row > 3.0 and row <= 4.0:
+    if row > 1.5 and row <= 2.0:
         c3 += 1
-    if row > 4.0 and row <= 5.0:
+    if row > 2.0 and row <= 2.5:
         c4 += 1
-    if row > 5.0 and row <= 6.0:
+    if row > 2.5 and row <= 3.0:
         c5 += 1
-    if row > 6.0 and row <= 7.0:
+    if row > 3.0 and row <= 3.5:
         c6 += 1
-    if row > 7.0 and row <= 8.0:
+    if row > 3.5 and row <= 4.0:
         c7 += 1
-    if row > 8.0 and row <= 9.0:
+    if row > 4.0 and row <= 4.5:
         c8 += 1
-    if row > 9.0 and row <= 10.0:
+    if row > 4.5 and row <= 5.0:
         c9 += 1
 print("C0: ", c0)
 print("C1: ", c1)
@@ -554,15 +544,12 @@ print("C7: ", c7)
 print("C8: ", c8)
 print("C9: ", c9)
 
-print(predictions_value_df[predictions_value_df.Euclidian == predictions_value_df.Euclidian.max()])
 
 # Create a sample dataframe with an text index
 # fig = plt.figure()
 # ax = fig.add_axes([0,0,1,1])
-# range = ['0-0.5', '0.5-1', '1-1.5', '1.5-2', '2-2.5',
-#          '2.5-3', '3-3.5', '3.5-4', '4-4.5', '4.5-5']
-range = ['0-1', '1-2', '2-3', '3-4', '4-5',
-         '5-6', '6-7', '7-8', '8-9', '9-10']
+range = ['0-0.5', '0.5-1', '1-1.5', '1.5-2', '2-2.5',
+         '2.5-3', '3-3.5', '3.5-4', '4-4.5', '4.5-5']
 count = [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9]
 
 plt.bar(range, count, color='maroon',
@@ -573,64 +560,19 @@ plt.ylabel('Count')
 plt.legend(['Range', 'Count'], loc='upper left')
 plt.show()
 
-plt.plot(history.history['mae'])
-plt.plot(history.history['val_mae'])
-plt.title('Model MAE')
-plt.ylabel('MAE')
-plt.xlabel('Epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
+time_before = time.perf_counter()
 
-plt.plot(history.history['mse'])
-plt.plot(history.history['val_mse'])
-plt.title('Model MSE')
-plt.ylabel('MSE')
-plt.xlabel('Epoch')
-plt.legend(['train', 'test'], loc='upper left')
-plt.show()
-
-# plt.plot(history.history['accuracy'])
-# plt.plot(history.history['val_accuracy'])
-# plt.title('model acc')
-# plt.ylabel('acc')
-# plt.xlabel('epoch')
-# plt.legend(['train', 'val'], loc='upper left')
-# plt.show()
-
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
-plt.show()
-
-# time_before = time.perf_counter()
-
-# model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model2')
-# tfjs.converters.save_keras_model(
-#     model, "D:\Work\Project\Github\Low-Power-IPS-Web-App\\new-web\\model")
+# model.save('D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
+# # tfjs.converters.save_keras_model(
+# #     model, "D:\Work\Project\Github\Low-Power-IPS-Web-App\model")
 
 # items = [
-#         # [-48, -61, -65, -67, -68, -82],
-#         # [-48, -67, -53, -63, -72, -71],
-#         # [-51, -70, -65, -83, -69, -89]
-#         #  [-58, -73, -70, -76],
-#         #  [-57, -56, -67, -58],
-#         #  [-59, -58, -64, -61],
-#         # [-72, -56, -72, -70], #(1,1)
-#         # [-60, -59, -67, -50], #(2,2)
-#         # [-61, -63, -75, -57], #(2,1)
-#         [-57, -81, -65, -61], #(1,1)
-#         [-56, -60, -64, -61], #(1,1)
-#         [-60, -67, -60, -62], #(1,1)
-#         [-64,-62,-68,-62], #(3,2)
-#         [-55,-66,-69,-63], #(3,2)
-#         [-62,-67,-67,-74], #(3,2)
-#         [-62,-61,-76,-53], #(3,2)
+#         [-48, -61, -65, -67, -68, -82],
+#         [-48, -67, -53, -63, -72, -71],
+#         [-51, -70, -65, -83, -69, -89]
 # ]
 # model_load = keras.models.load_model(
-#     'D:/Work/Project/Github/Low-Power-IPS-Algorithm/model2')
+#     'D:/Work/Project/Github/Low-Power-IPS-Algorithm/model')
 # test_predictions_new = model_load.predict(items)
 # print(test_predictions_new)
 

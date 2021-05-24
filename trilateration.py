@@ -5,20 +5,26 @@ from numpy.core.numeric import NaN
 # constant
 rssi_ref = -45
 n = 2.75
-b1_pos = [0, 0.3]
-b2_pos = [5.84, 2.5]
-b3_pos = [5.84, 4.5]
-b4_pos = [5.84, 6.5]
-b5_pos = [5.84, 8.5]
-b6_pos = [0, 11.64]
+# b1_pos = [0, 0.3]
+# b2_pos = [5.84, 2.5]
+# b3_pos = [5.84, 4.5]
+# b4_pos = [5.84, 6.5]
+# b5_pos = [5.84, 8.5]
+# b6_pos = [0, 11.64]
+b1_pos = [0, 6]
+b2_pos = [5.84, 6]
+b3_pos = [3, 10]
+b4_pos = [3, 2]
+# b5_pos = [5.84, 8.5]
+# b6_pos = [0, 11.64]
 
 beacon_position = {
     "B1": b1_pos,
     "B2": b2_pos,
     "B3": b3_pos,
     "B4": b4_pos,
-    "B5": b5_pos,
-    "B6": b6_pos,
+    # "B5": b5_pos,
+    # "B6": b6_pos,
 }
 
 

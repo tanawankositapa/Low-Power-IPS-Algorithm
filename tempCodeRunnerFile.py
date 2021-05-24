@@ -1,4 +1,15 @@
-list_B6 = [], [], [], [], [], []
-indicator_list = [0, 0, 0, 0, 0, 0]
-len_counting = 0
-len_rawdf = len(raw_df)
+plt.plot(history.history['mae'])
+plt.plot(history.history['val_mae'])
+plt.title('Model MAE')
+plt.ylabel('MAE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+plt.plot(history.history['mse'])
+plt.plot(history.history['val_mse'])
+plt.title('Model MSE')
+plt.ylabel('MSE')
+plt.xlabel('Epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
